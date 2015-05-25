@@ -858,11 +858,52 @@ oppia.factory('statePropertyService', [
   };
 }]);
 
-// TODO(anuzis/vjoisar): create a separate service to keep track of which
-// gadgets go in which panels. (per Sean's suggestion in review.)
+// Data service for keeping track of which gadgets are in each panel.
+oppia.factory('explorationGadgetPanelsService', [
+    '$log', '$rootScope', 'explorationGadgetsService',
+    function($log, $rootScope, explorationGadgetsService) {
+  // _panels is a JS object with skin panel names as keys and lists of
+  // gadget_instance.name strings as values.
+  var _panels = null;
+  return {
+    init: function(skin_customizations_data) {
+      // @sll: Is there any reason not to override _panels = {} directly here?
+      // Some other factories appear to wait until the end and use
+      // angular.copy() to overwrite (e.g. for _states). In this case I wanted
+      // to keep the addGadgetNamesToPanel method referring directly to
+      // _panels instead of needing an additional JS object passed into it.
+      _panels = {}
+      var panelContents = skin_customizations_data.panels_contents;
+      var numPanels = Object.keys(panelContents).length;
+      for (var i = 0; i < numPanels; i++) {
+        var panelName = Object.keys(panelContents)[i];
+        _panels[panelName] = [];
+        this.addGadgetNamesToPanel(
+          panelName, panelContents[panelName]
+        );
+      }
+      $log.info('Initialized ' + numPanels + ' panels.');
+    },
+    addGadgetNamesToPanel: function(panelName, gadgetsDataList) {
+      for (var i = 0; i < gadgetsDataList.length; i++) {
+        _panels[panelName].push(gadgetsDataList[i].gadget_name);
+      }
+    },
+    getGadgetNamesInPanel: function(panelName) {
+      if (!_panels.hasOwnProperty(panelName)) {
+        $log.info('Retreival attempt from non-existant panel: ' + panelName);
+        return;
+      }
+      return _panels[panelName];
+    },
+    removeGadgetFromPanel: function(panelName, gadgetName) {
+      delete _panels[panelName][gadgetName];
+    }
+  }
+}]);
 
 // TODO(anuzis/vjoisar): make service DRY with explorationStatesService
-// Data service for keeping track of the exploration's gadgets.
+// Data service for keeping track of gadget instance details.
 oppia.factory('explorationGadgetsService', [
     '$log', '$modal', '$filter', '$location', '$rootScope',
     'changeListService', 'editorContextService', 'warningsData',
@@ -870,17 +911,29 @@ oppia.factory('explorationGadgetsService', [
     function($log, $modal, $filter, $location, $rootScope,
              changeListService, editorContextService, warningsData,
              validatorsService) {
-  // _gadgets is a JS object with gadget_instance.name as unique keys
-  // and each gadget_instance's data as value.
+  // _gadgets is a JS object with gadget_instance.name strings as keys
+  // and each gadget_instance's data as values.
   var _gadgets = null;
   return {
-    init: function(gadgets) {
-      if (Object.keys(gadgets).length === 0) {
+    init: function(skin_customizations_data) {
+      var gadgets_data = {};
+      var panelContents = skin_customizations_data.panels_contents;
+      for (var i = 0; i < Object.keys(panelContents).length; i++) {
+        var panelName = Object.keys(panelContents)[i];
+        for (var j = 0; j < panelContents[panelName].length; j++) {
+          var gadgetName = panelContents[panelName][j].gadget_name;
+          gadgets_data[gadgetName] = panelContents[panelName][j];
+        }
+      }
+      var numGadgets = Object.keys(gadgets_data).length;
+      if (numGadgets === 0) {
         $log.info('No gadgets to initialize.');
       } else {
-        $log.info('Initializing gadgets: ' + Object.keys(gadgets));
+        $log.info('Initializing ' + numGadgets + ' gadgets: ' + Object.keys(
+          gadgets_data)
+        );
       }
-      this._gadgets = angular.copy(gadgets);
+      _gadgets = angular.copy(gadgets_data);
     },
     getGadget: function(gadgetName) {
       return angular.copy(_gadgets[gadgetName]);
@@ -914,7 +967,8 @@ oppia.factory('explorationGadgetsService', [
       }
     },
     addGadget: function(gadgetData, successCallback) {
-      gadgetData.name = generateUniqueGadgetName(gadgetData.id);
+      gadgetData.name = this.generateUniqueGadgetName(gadgetData.gadgetId);
+      _gadgets[gadgetData.name] = gadgetData;
       changeListService.addGadget(gadgetData);
       return;
       /*
