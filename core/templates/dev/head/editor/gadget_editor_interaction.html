@@ -1,0 +1,68 @@
+<div ng-controller="GadgetEditor" id="tutorialGadgetInteraction">
+  <span style="font-size: 16px;">
+    <strong>Gadgets</strong>
+  </span>
+  <md-card style="background-color: white; margin: 20px 0px; padding: 10px 10px;">
+    <button type="button" class="btn btn-default btn-xs oppia-add-gadget-button protractor-test-open-add-gadget-modal" ng-click="openAddGadgetInteractionModal()">
+      Insert Gadget
+    </button>
+  </md-card>
+  <div ng-if="false"> TODO(azunis/vjoisar):(resolve gadget id in modal controller)</div>
+  <div ng-if="!!gadgetId"
+      class="gadget-panel conversation-skin-left-gadget-panel ng-isolate-scope"
+      style="margin-left: 50px;width: 200px;height:400px;position: fixed;left: 0;top: 100px; background:white;border:1px solid lightgrey;">
+      <div style="display:inline-block">
+        <[gadgetId]>
+        <img src="/third_party/static/material-design-icons-1.0.1/ic_close_black_48dp.png" class="protractor-test-delete-interaction oppia-delete-interaction-button oppia-transition-200" ng-click="deleteGadget(gadgetId)"></span>
+      </div>
+  </div>
+</div>
+
+<script type="text/ng-template" id="modals/addGadgetInteraction">
+  <div class="modal-header" style="border-bottom: 0; padding-bottom: 0;">
+    <h3 ng-if="!selectedGadgetId">
+      Insert a gadget
+    </h3>
+    <h3 ng-if="selectedGadgetId">
+      Customize Gadget (<[GADGET_SPECS[selectedGadgetId].name]>)
+    </h3>
+  </div>
+  <div class="modal-body">
+    <div ng-if="!selectedGadgetId" ng-cloak>
+      <ul class="gadget-list">
+        <li class="gadget-list-item" 
+            ng-repeat="(key, gadget) in ALLOWED_GADGETS"
+            ng-click="onChangeGadgetId(key)">
+            <[key]>
+        </li>
+      </ul>
+    </div>
+
+    <form ng-if="selectedGadgetId" name="form.schemaForm" class="protractor-test-gadget-editor">
+      <div ng-if="customizationArgSpecs.length === 0">
+        <em>There are no customizations options available.<br><br>
+        To use this interaction, click 'Save Interaction'.</em>
+      </div>
+
+      <div ng-repeat="customizationArgSpec in customizationArgSpecs track by $index">
+        <div class="oppia-gadget-customization-label"><[customizationArgSpec.description]></div>
+        <div>
+          <schema-based-editor local-value="tmpCustomizationArgs[$index].value" schema="customizationArgSpec.schema">
+          </schema-based-editor>
+          <div style="margin-bottom: 15px;"></div>
+        </div>
+      </div>
+    </form>
+  </div> 
+
+
+  <div class="modal-footer">
+    <button class="btn btn-default" style="float: left;" 
+            ng-click="returnToGadgetSelector()" 
+            ng-if="selectedGadgetId">
+        Back
+    </button>
+    <button class="btn btn-default" ng-click="cancel()">Cancel</button>
+    <button class="btn btn-success protractor-test-add-gadget" ng-click="addGadget()" ng-disabled="false">Add Gadget</button>
+  </div>
+</script>
