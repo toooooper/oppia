@@ -178,6 +178,9 @@ oppia.factory('changeListService', [
   var CMD_DELETE_STATE = 'delete_state';
   var CMD_EDIT_STATE_PROPERTY = 'edit_state_property';
   var CMD_EDIT_EXPLORATION_PROPERTY = 'edit_exploration_property';
+  // All gadget commands
+  var CMD_ADD_GADGET = 'add_gadget';
+  var CMD_DELETE_GADGET = 'delete_gadget';
 
   var ALLOWED_EXPLORATION_BACKEND_NAMES = {
     'title': true,
@@ -320,6 +323,40 @@ oppia.factory('changeListService', [
       }
       var lastChange = explorationChangeList.pop();
       undoneChangeStack.push(lastChange);
+    },
+    /**
+     * Saves a gadget dict that represents a new gadget.
+     *
+     * It is the responsbility of the caller to check that the gadget dict
+     * is correctly formed
+     *
+     * @param {object} gadgetData The dict containing new gadget information.
+     */
+    addGadget: function(gadgetData) {
+      console.log(gadgetData);
+      return;//TODO(azunis/vjoisar): Remove  after backend is wired to take gadget requests.
+      this._addChange({
+        cmd: CMD_ADD_GADGET,
+        //TODO(azunis/vjoisar): enforce gadget dict keys.
+        gadget_dict: gadgetData
+      });
+    },
+    /**
+     * Saves a gadget dict that represents a new gadget.
+     *
+     * It is the responsbility of the caller to check that the gadget dict
+     * is correctly formed
+     *
+     * @param {object} gadgetData The dict containing new gadget information.
+     */
+    deleteGadget: function(gadgetId) {
+      console.log(gadgetId);
+      return;//TODO(azunis/vjoisar): Remove  after backend is wired to take gadget requests.
+      this._addChange({
+        cmd: CMD_ADD_GADGET,
+        //TODO(azunis/vjoisar): enforce gadget dict keys.
+        gadget_id: gadgetId
+      });
     }
   };
 }]);
@@ -606,7 +643,7 @@ oppia.factory('explorationStatesService', [
       $rootScope.$broadcast('refreshGraph');
     },
     isNewStateNameValid: function(newStateName, showWarnings) {
-      if (_states[newStateName]) {
+      if (_states.hasOwnProperty(newStateName)) {
         if (showWarnings) {
           warningsData.addWarning('A state with this name already exists.');
         }
@@ -620,7 +657,7 @@ oppia.factory('explorationStatesService', [
       if (!validatorsService.isValidStateName(newStateName, true)) {
         return;
       }
-      if (!!_states[newStateName]) {
+      if (!!_states.hasOwnProperty(newStateName)) {
         warningsData.addWarning('A state with this name already exists.');
         return;
       }
@@ -817,6 +854,189 @@ oppia.factory('statePropertyService', [
     // Reverts the displayed value to the saved memento.
     restoreFromMemento: function() {
       this.displayed = angular.copy(this.savedMemento);
+    }
+  };
+}]);
+
+// Data service for keeping track of which gadgets are in each panel.
+oppia.factory('explorationGadgetPanelsService', [
+    '$log', '$rootScope', 'explorationGadgetsService',
+    function($log, $rootScope, explorationGadgetsService) {
+  // _panels is a JS object with skin panel names as keys and lists of
+  // gadget_instance.name strings as values.
+  var _panels = null;
+  return {
+    init: function(skin_customizations_data) {
+      // @sll: Is there any reason not to override _panels = {} directly here?
+      // Some other factories appear to wait until the end and use
+      // angular.copy() to overwrite (e.g. for _states). In this case I wanted
+      // to keep the addGadgetNamesToPanel method referring directly to
+      // _panels instead of needing an additional JS object passed into it.
+      _panels = {}
+      var panelContents = skin_customizations_data.panels_contents;
+      var numPanels = Object.keys(panelContents).length;
+      for (var i = 0; i < numPanels; i++) {
+        var panelName = Object.keys(panelContents)[i];
+        _panels[panelName] = [];
+        this.addGadgetNamesToPanel(
+          panelName, panelContents[panelName]
+        );
+      }
+      $log.info('Initialized ' + numPanels + ' panels.');
+    },
+    addGadgetNamesToPanel: function(panelName, gadgetsDataList) {
+      for (var i = 0; i < gadgetsDataList.length; i++) {
+        _panels[panelName].push(gadgetsDataList[i].gadget_name);
+      }
+    },
+    getGadgetNamesInPanel: function(panelName) {
+      if (!_panels.hasOwnProperty(panelName)) {
+        $log.info('Retreival attempt from non-existant panel: ' + panelName);
+        return;
+      }
+      return _panels[panelName];
+    },
+    removeGadgetFromPanel: function(panelName, gadgetName) {
+      delete _panels[panelName][gadgetName];
+    }
+  }
+}]);
+
+// TODO(anuzis/vjoisar): make service DRY with explorationStatesService
+// Data service for keeping track of gadget instance details.
+oppia.factory('explorationGadgetsService', [
+    '$log', '$modal', '$filter', '$location', '$rootScope',
+    'changeListService', 'editorContextService', 'warningsData',
+    'validatorsService',
+    function($log, $modal, $filter, $location, $rootScope,
+             changeListService, editorContextService, warningsData,
+             validatorsService) {
+  // _gadgets is a JS object with gadget_instance.name strings as keys
+  // and each gadget_instance's data as values.
+  var _gadgets = null;
+  return {
+    init: function(skin_customizations_data) {
+      var gadgets_data = {};
+      var panelContents = skin_customizations_data.panels_contents;
+      for (var i = 0; i < Object.keys(panelContents).length; i++) {
+        var panelName = Object.keys(panelContents)[i];
+        for (var j = 0; j < panelContents[panelName].length; j++) {
+          var gadgetName = panelContents[panelName][j].gadget_name;
+          gadgets_data[gadgetName] = panelContents[panelName][j];
+        }
+      }
+      var numGadgets = Object.keys(gadgets_data).length;
+      if (numGadgets === 0) {
+        $log.info('No gadgets to initialize.');
+      } else {
+        $log.info('Initializing ' + numGadgets + ' gadgets: ' + Object.keys(
+          gadgets_data)
+        );
+      }
+      _gadgets = angular.copy(gadgets_data);
+    },
+    getGadget: function(gadgetName) {
+      return angular.copy(_gadgets[gadgetName]);
+    },
+    setGadget: function(gadgetName, gadgetData) {
+      _gadgets[gadgetName] = angular.copy(gadgetData);
+    },
+    isNewGadgetNameValid: function(newGadgetName, showWarnings) {
+      if (_gadgets.hasOwnProperty(newGadgetName)) {
+        if (showWarnings) {
+          warningsData.addWarning('A gadget with this name already exists.');
+        }
+        return false;
+      }
+      return (
+        // TODO(anuzis/vjoisar): implement validatorsService.isValidGadgetName
+        validatorsService.isValidGadgetName(newGadgetName, showWarnings));
+    },
+    generateUniqueGadgetName: function(gadgetId) {
+      if (!_gadgets.hasOwnProperty(gadgetId)) {
+        return gadgetId;
+      } else {
+        var baseGadgetName = gadgetId;
+        var uniqueInteger = 2;
+        var generatedGadgetName = baseGadgetName + uniqueInteger;
+        while (_gadgets.hasOwnProperty(generatedGadgetName)) {
+          uniqueInteger++;
+          generatedGadgetName = baseGadgetName + uniqueInteger;
+        }
+        return generatedGadgetName;
+      }
+    },
+    addGadget: function(gadgetData, successCallback) {
+      gadgetData.name = this.generateUniqueGadgetName(gadgetData.gadgetId);
+      _gadgets[gadgetData.name] = gadgetData;
+      changeListService.addGadget(gadgetData);
+      return;
+      /*
+      _gadgets[newGadgetName] = newGadgetTemplateService.getNewGadgetTemplate(
+        newGadgetName);
+      */
+      if (successCallback) {
+        successCallback(newGadgetName);
+      }
+
+    },
+    deleteGadget: function(deleteGadgetName) {
+      warningsData.clear();
+
+      if (!_gadgets.hasOwnProperty(deleteGadgetName)) {
+        // This warning can't be triggered in current UI.
+        // Keeping as defense-in-depth for future UI changes.
+        warningsData.addWarning('No gadget with name ' + deleteGadgetName + ' exists.');
+        return;
+      }
+
+      $modal.open({
+        // TODO(anuzis/vjoisar): implement script ID for 'modals/deleteGadget'
+        // based on pattern for modals/deleteState, but outside
+        // exploration_graph.html
+        templateUrl: 'modals/deleteGadget',
+        backdrop: true,
+        resolve: {
+          deleteGadgetName: function() {
+            return deleteGadgetName;
+          }
+        },
+        controller: [
+          '$scope', '$modalInstance', 'deleteGadgetName',
+          function($scope, $modalInstance, deleteGadgetName) {
+            $scope.deleteGadgetName = deleteGadgetName;
+
+            $scope.reallyDelete = function() {
+              $modalInstance.close(deleteGadgetName);
+            };
+
+            $scope.cancel = function() {
+              $modalInstance.dismiss('cancel');
+              warningsData.clear();
+            };
+          }
+        ]
+      }).result.then(function(deleteGadgetName) {
+        delete _gadgets[deleteGadgetName];
+        changeListService.deleteGadget(deleteGadgetName);
+      });
+    },
+    renameGadget: function(oldGadgetName, newGadgetName) {
+      newGadgetName = $filter('normalizeWhitespace')(newGadgetName);
+      if (!validatorsService.isValidGadgetName(newGadgetName, true)) {
+        return;
+      }
+      if (!!_gadgets.hasOwnProperty(newGadgetName)) {
+        warningsData.addWarning('A gadget with this name already exists.');
+        return;
+      }
+      warningsData.clear();
+
+      _gadgets[newGadgetName] = angular.copy(_gadgets[oldGadgetName]);
+      delete _gadgets[oldGadgetName];
+
+      // TODO(anuzis/vjoisar): Implement changeListService.renameGadget
+      changeListService.renameGadget(newGadgetName, oldGadgetName);
     }
   };
 }]);

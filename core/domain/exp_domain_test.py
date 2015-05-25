@@ -106,6 +106,7 @@ skin_customizations:
           title:
             value: The Test Gadget!
         gadget_id: TestGadget
+        gadget_name: ATestGadget
         visible_in_states:
           - New state
           - Second state
@@ -365,7 +366,8 @@ class ExplorationDomainUnitTests(test_utils.GenericTestBase):
         exploration = exp_domain.Exploration.from_yaml(
             'exp1', 'Title', 'Category', SAMPLE_YAML_CONTENT_WITH_GADGETS)
 
-        invalid_gadget_instance = exp_domain.GadgetInstance('bad_ID', [], {})
+        invalid_gadget_instance = exp_domain.GadgetInstance(
+            'bad_ID', 'aUniqueGadgetName', [], {})
         with self.assertRaisesRegexp(
                  utils.ValidationError,
                  'Unknown gadget with ID bad_ID is not in the registry.'):
@@ -396,6 +398,23 @@ class ExplorationDomainUnitTests(test_utils.GenericTestBase):
             exploration.states['GHI'] = ghi_state
             exploration.validate()
 
+            exploration.skin_instance.panel_contents_dict['right'].append(
+                gadget_instance)
+            with self.assertRaisesRegexp(
+                    utils.ValidationError,
+                    'ATestGadget gadget instance name must be unique.'):
+                exploration.validate()
+            exploration.skin_instance.panel_contents_dict['right'].pop()
+
+            gadget_instance.visible_in_states.extend(['GHI'])
+            with self.assertRaisesRegexp(
+                    utils.ValidationError,
+                    'TestGadget specifies visibility repeatedly for state: GHI'):
+                exploration.validate()
+
+            # Remove duplicate state.
+            gadget_instance.visible_in_states.pop()
+
             # Adding a panel that doesn't exist in the skin.
             exploration.skin_instance.panel_contents_dict[
                 'non_existent_panel'] = []
@@ -418,7 +437,9 @@ class ExplorationDomainUnitTests(test_utils.GenericTestBase):
             ['TestGadget']
         )
 
-        another_gadget = exp_domain.GadgetInstance('AnotherGadget', [], {})
+        another_gadget = exp_domain.GadgetInstance(
+            'AnotherGadget', 'GadgetUniqueName1', [], {}
+        )
         exploration_with_gadgets.skin_instance.panel_contents_dict[
             'right'].append(another_gadget)
         self.assertEqual(
@@ -963,6 +984,7 @@ class SkinInstanceUnitTests(test_utils.GenericTestBase):
                             'floors': {'value': 1},
                             'title': {'value': 'The Test Gadget!'}},
                         'gadget_id': 'TestGadget',
+                        'gadget_name': 'ATestGadget',
                         'visible_in_states': ['New state', 'Second state']
                     }
                 ],
@@ -1069,7 +1091,7 @@ class GadgetInstanceUnitTests(test_utils.GenericTestBase):
         panel_contents_dict['left'].append(test_gadget_instance)
         with self.assertRaisesRegexp(
                 utils.ValidationError,
-                "'left' panel expected at most 1 gadget, received 2."):
+                "'left' panel expected at most 1 gadget, but 2 gadgets are visible in state 'New state'."):
             exploration.validate()
 
         # Assert that an error is raised when a gadget is not visible in any
@@ -1093,6 +1115,7 @@ class GadgetInstanceUnitTests(test_utils.GenericTestBase):
             test_gadget_as_dict,
             {
                 'gadget_id': 'TestGadget',
+                'gadget_name': 'ATestGadget',
                 'visible_in_states': ['New state', 'Second state'],
                 'customization_args': {
                     'title': {

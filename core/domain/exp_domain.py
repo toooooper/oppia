@@ -22,6 +22,7 @@ should therefore be independent of the specific storage models used."""
 
 __author__ = 'Sean Lip'
 
+import collections
 import copy
 import logging
 import re
@@ -553,8 +554,13 @@ class InteractionInstance(object):
 class GadgetInstance(object):
     """Value object for an instance of a gadget."""
 
-    def __init__(self, gadget_id, visible_in_states, customization_args):
+    def __init__(self, gadget_id, gadget_name,
+                 visible_in_states, customization_args):
+        # Backend ID referring to the gadget's type in gadget registry.
         self.id = gadget_id
+
+        # Author-facing unique name to distinguish instances in the Editor UI.
+        self.name = gadget_name
 
         # List of State name strings where this Gadget is visible.
         self.visible_in_states = visible_in_states
@@ -603,10 +609,23 @@ class GadgetInstance(object):
                 '%s gadget not visible in any states.' % (
                     self.gadget.name))
 
+        # Validate state name visibility isn't repeated within each gadget.
+        if len(self.visible_in_states) != len(set(self.visible_in_states)):
+            redundant_visible_states = [
+                state_name for state_name, count
+                in collections.Counter(self.visible_in_states).items()
+                if count > 1]
+            raise utils.ValidationError(
+                '%s specifies visibility repeatedly for state%s: %s' % (
+                    self.id,
+                    's' if len(redundant_visible_states) > 1 else '',
+                    ', '.join(redundant_visible_states)))
+
     def to_dict(self):
         """Returns GadgetInstance data represented in dict form."""
         return {
             'gadget_id': self.id,
+            'gadget_name': self.name,
             'visible_in_states': self.visible_in_states,
             'customization_args': self._get_full_customization_args(),
         }
@@ -616,6 +635,7 @@ class GadgetInstance(object):
         """Returns GadgetInstance constructed from dict data."""
         return GadgetInstance(
             gadget_dict['gadget_id'],
+            gadget_dict['gadget_name'],
             gadget_dict['visible_in_states'],
             gadget_dict['customization_args'])
 
@@ -645,8 +665,9 @@ class SkinInstance(object):
         for panel_name, gdict_list in skin_customizations[
                 'panels_contents'].iteritems():
             self.panel_contents_dict[panel_name] = [GadgetInstance(
-                gdict['gadget_id'], gdict['visible_in_states'],
-                gdict['customization_args']) for gdict in gdict_list]
+                gdict['gadget_id'], gdict['gadget_name'],
+                gdict['visible_in_states'], gdict['customization_args']
+            ) for gdict in gdict_list]
 
     @property
     def skin(self):
@@ -656,6 +677,10 @@ class SkinInstance(object):
     def validate(self):
         """Validates that gadgets fit the skin panel dimensions, and that the
         gadgets themselves are valid."""
+
+        # A list to validate each gadget_instance.name is unique.
+        gadget_instance_names = []
+
         for panel_name, gadget_instances_list in (
                 self.panel_contents_dict.iteritems()):
 
@@ -672,6 +697,12 @@ class SkinInstance(object):
             # Validate gadget internal attributes.
             for gadget_instance in gadget_instances_list:
                 gadget_instance.validate()
+                if gadget_instance.name in gadget_instance_names:
+                    raise utils.ValidationError(
+                        '%s gadget instance name must be unique.' % (
+                            gadget_instance.name)
+                    )
+                gadget_instance_names.append(gadget_instance.name)
 
     def to_dict(self):
         """Returns SkinInstance data represented in dict form."""
