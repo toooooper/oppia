@@ -643,7 +643,7 @@ oppia.factory('explorationStatesService', [
       $rootScope.$broadcast('refreshGraph');
     },
     isNewStateNameValid: function(newStateName, showWarnings) {
-      if (_states[newStateName]) {
+      if (_states.hasOwnProperty(newStateName)) {
         if (showWarnings) {
           warningsData.addWarning('A state with this name already exists.');
         }
@@ -657,7 +657,7 @@ oppia.factory('explorationStatesService', [
       if (!validatorsService.isValidStateName(newStateName, true)) {
         return;
       }
-      if (!!_states[newStateName]) {
+      if (!!_states.hasOwnProperty(newStateName)) {
         warningsData.addWarning('A state with this name already exists.');
         return;
       }
@@ -882,12 +882,6 @@ oppia.factory('explorationGadgetsService', [
       }
       this._gadgets = angular.copy(gadgets);
     },
-    setGadgets: function(value) {
-      _gadgets = angular.copy(value);
-    },
-    getGadgets: function() {
-      return angular.copy(_gadgets);
-    },
     getGadget: function(gadgetName) {
       return angular.copy(_gadgets[gadgetName]);
     },
@@ -895,7 +889,7 @@ oppia.factory('explorationGadgetsService', [
       _gadgets[gadgetName] = angular.copy(gadgetData);
     },
     isNewGadgetNameValid: function(newGadgetName, showWarnings) {
-      if (_gadgets[newGadgetName]) {
+      if (_gadgets.hasOwnProperty(newGadgetName)) {
         if (showWarnings) {
           warningsData.addWarning('A gadget with this name already exists.');
         }
@@ -905,14 +899,14 @@ oppia.factory('explorationGadgetsService', [
         // TODO(anuzis/vjoisar): implement validatorsService.isValidGadgetName
         validatorsService.isValidGadgetName(newGadgetName, showWarnings));
     },
-    generateUniqueGadgetName: function(gadgetInstance) {
-      if (!_gadgets[gadgetInstance.id]) {
-        return gadgetInstance.id;
+    generateUniqueGadgetName: function(gadgetId) {
+      if (!_gadgets.hasOwnProperty(gadgetId)) {
+        return gadgetId;
       } else {
-        var baseGadgetName = gadgetInstance.id;
+        var baseGadgetName = gadgetId;
         var uniqueInteger = 2;
         var generatedGadgetName = baseGadgetName + uniqueInteger;
-        while (_gadgets[generatedGadgetName]) {
+        while (_gadgets.hasOwnProperty(generatedGadgetName)) {
           uniqueInteger++;
           generatedGadgetName = baseGadgetName + uniqueInteger;
         }
@@ -920,23 +914,12 @@ oppia.factory('explorationGadgetsService', [
       }
     },
     addGadget: function(gadgetData, successCallback) {
+      gadgetData.name = generateUniqueGadgetName(gadgetData.id);
       changeListService.addGadget(gadgetData);
       return;
       /*
-      newGadgetName = $filter('normalizeWhitespace')(newGadgetName);
-      if (!validatorsService.isValidGadgetName(newGadgetName, true)) {
-        return;
-      }
-      if (!!_gadgets[newGadgetName]) {
-        warningsData.addWarning('A gadget with this name already exists.');
-        return;
-      }
-      warningsData.clear();
-
       _gadgets[newGadgetName] = newGadgetTemplateService.getNewGadgetTemplate(
         newGadgetName);
-      // TODO(anuzis/vjoisar): implement changeListService.addGadget
-      changeListService.addGadget(newGadgetName);
       */
       if (successCallback) {
         successCallback(newGadgetName);
@@ -946,10 +929,9 @@ oppia.factory('explorationGadgetsService', [
     deleteGadget: function(deleteGadgetName) {
       warningsData.clear();
 
-      if (!_gadgets[deleteGadgetName]) {
-        // TODO(anuzis/vjoisar): Remove this warning if it's impossible to
-        // trigger based on our UI. (e.g. if a delete button is only present
-        // on gadgets in a delete-able state.)
+      if (!_gadgets.hasOwnProperty(deleteGadgetName)) {
+        // This warning can't be triggered in current UI.
+        // Keeping as defense-in-depth for future UI changes.
         warningsData.addWarning('No gadget with name ' + deleteGadgetName + ' exists.');
         return;
       }
@@ -990,7 +972,7 @@ oppia.factory('explorationGadgetsService', [
       if (!validatorsService.isValidGadgetName(newGadgetName, true)) {
         return;
       }
-      if (!!_gadgets[newGadgetName]) {
+      if (!!_gadgets.hasOwnProperty(newGadgetName)) {
         warningsData.addWarning('A gadget with this name already exists.');
         return;
       }
