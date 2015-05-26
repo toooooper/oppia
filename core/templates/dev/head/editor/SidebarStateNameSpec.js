@@ -136,7 +136,7 @@ describe('Sidebar state name controller', function() {
       expect(scope.saveStateName('Second State')).toBe(false);
     });
 
-    it('should check that state names are changeable', function() {
+    it('should allow state names to be changeable', function() {
       ecs.setActiveStateName('First State');
       scope.initStateNameEditor();
       expect(scope.stateName).toEqual('First State');
@@ -151,7 +151,7 @@ describe('Sidebar state name controller', function() {
       expect(ecs.getActiveStateName()).toEqual('Fifth State');
     });
 
-    it('should check that states can be named variations of \'END\'', function() {
+    it('should allow states names that are variations of \'END\'', function() {
       ecs.setActiveStateName('First State');
       scope.initStateNameEditor();
 
@@ -160,7 +160,7 @@ describe('Sidebar state name controller', function() {
       expect(scope.saveStateName('end')).toBe(true);
     });
 
-    it('should check that state name edits are independent', function() {
+    it('should allow independent editing of state names', function() {
       ecs.setActiveStateName('Third State');
       scope.saveStateName('Fourth State');
       expect(ecs.getActiveStateName()).toEqual('Fourth State');
