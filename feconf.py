@@ -115,6 +115,8 @@ for ind in range(32):
 XSSI_PREFIX = ')]}\'\n'
 # A regular expression for alphanumeric characters.
 ALPHANUMERIC_REGEX = r'^[A-Za-z0-9]+$'
+# A regular expression for alphanumeric characters allowing spaces.
+ALPHANUMERIC_SPACE_REGEX = r'^[A-Za-z0-9\s]+$'
 # A regular expression for tags.
 TAG_REGEX = r'^[a-z ]+$'
 

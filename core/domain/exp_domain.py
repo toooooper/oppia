@@ -554,6 +554,8 @@ class InteractionInstance(object):
 class GadgetInstance(object):
     """Value object for an instance of a gadget."""
 
+    MAX_GADGET_NAME_LENGTH = 20
+
     def __init__(self, gadget_id, gadget_name,
                  visible_in_states, customization_args):
         # Backend ID referring to the gadget's type in gadget registry.
@@ -583,6 +585,34 @@ class GadgetInstance(object):
         """Height in pixels."""
         return self.gadget.get_height(self.customization_args)
 
+    @staticmethod
+    def _validate_gadget_name(gadget_name):
+        """Validates gadget_name is a non-empty string of alphanumerics
+        allowing spaces."""
+        if gadget_name == '':
+            raise utils.ValidationError(
+                'Gadget name must not be an empty string.')
+
+        if not isinstance(gadget_name, basestring):
+            raise utils.ValidationError(
+                'Gadget name must be a string. Received type: %s' % str(
+                    type(gadget_name).__name__)
+            )
+
+        if len(gadget_name) > GadgetInstance.MAX_GADGET_NAME_LENGTH:
+            raise utils.ValidationError(
+                '%s gadget name exceeds maximum length of %d' % (
+                    gadget_name,
+                    GadgetInstance.MAX_GADGET_NAME_LENGTH
+                )
+            )
+
+        if not re.search(feconf.ALPHANUMERIC_SPACE_REGEX, gadget_name):
+            raise utils.ValidationError(
+                'Gadget names must be alphanumeric. Spaces are allowed.'
+                ' Received: %s' % gadget_name
+            )
+
     def validate(self):
         """Validate attributes of this GadgetInstance."""
         try:
@@ -590,6 +620,8 @@ class GadgetInstance(object):
         except KeyError:
             raise utils.ValidationError(
                 'Unknown gadget with ID %s is not in the registry.' % self.id)
+
+        self._validate_gadget_name(self.name)
 
         unknown_customization_arguments = set(
             self.customization_args.iterkeys()) - set(

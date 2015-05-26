@@ -334,28 +334,25 @@ oppia.factory('changeListService', [
      */
     addGadget: function(gadgetData) {
       console.log(gadgetData);
-      return;//TODO(azunis/vjoisar): Remove  after backend is wired to take gadget requests.
+      return;//TODO(anuzis/vjoisar): Remove after backend is wired to take gadget requests.
       this._addChange({
         cmd: CMD_ADD_GADGET,
-        //TODO(azunis/vjoisar): enforce gadget dict keys.
+        //TODO(anuzis/vjoisar): enforce gadget dict keys.
         gadget_dict: gadgetData
       });
     },
     /**
-     * Saves a gadget dict that represents a new gadget.
+     * Deletes the gadget with the specified name.
      *
-     * It is the responsbility of the caller to check that the gadget dict
-     * is correctly formed
-     *
-     * @param {object} gadgetData The dict containing new gadget information.
+     * @param {string} gadgetName Unique name of the gadget to delete.
      */
-    deleteGadget: function(gadgetId) {
-      console.log(gadgetId);
-      return;//TODO(azunis/vjoisar): Remove  after backend is wired to take gadget requests.
+    deleteGadget: function(gadgetName) {
+      console.log(gadgetName);
+      return;//TODO(anuzis/vjoisar): Remove after backend is wired to take gadget requests.
       this._addChange({
         cmd: CMD_ADD_GADGET,
-        //TODO(azunis/vjoisar): enforce gadget dict keys.
-        gadget_id: gadgetId
+        //TODO(anuzis/vjoisar): enforce gadget dict keys.
+        gadget_name: gadgetName
       });
     }
   };
@@ -858,52 +855,7 @@ oppia.factory('statePropertyService', [
   };
 }]);
 
-// Data service for keeping track of which gadgets are in each panel.
-oppia.factory('explorationGadgetPanelsService', [
-    '$log', '$rootScope', 'explorationGadgetsService',
-    function($log, $rootScope, explorationGadgetsService) {
-  // _panels is a JS object with skin panel names as keys and lists of
-  // gadget_instance.name strings as values.
-  var _panels = null;
-  return {
-    init: function(skin_customizations_data) {
-      // @sll: Is there any reason not to override _panels = {} directly here?
-      // Some other factories appear to wait until the end and use
-      // angular.copy() to overwrite (e.g. for _states). In this case I wanted
-      // to keep the addGadgetNamesToPanel method referring directly to
-      // _panels instead of needing an additional JS object passed into it.
-      _panels = {}
-      var panelContents = skin_customizations_data.panels_contents;
-      var numPanels = Object.keys(panelContents).length;
-      for (var i = 0; i < numPanels; i++) {
-        var panelName = Object.keys(panelContents)[i];
-        _panels[panelName] = [];
-        this.addGadgetNamesToPanel(
-          panelName, panelContents[panelName]
-        );
-      }
-      $log.info('Initialized ' + numPanels + ' panels.');
-    },
-    addGadgetNamesToPanel: function(panelName, gadgetsDataList) {
-      for (var i = 0; i < gadgetsDataList.length; i++) {
-        _panels[panelName].push(gadgetsDataList[i].gadget_name);
-      }
-    },
-    getGadgetNamesInPanel: function(panelName) {
-      if (!_panels.hasOwnProperty(panelName)) {
-        $log.info('Retreival attempt from non-existant panel: ' + panelName);
-        return;
-      }
-      return _panels[panelName];
-    },
-    removeGadgetFromPanel: function(panelName, gadgetName) {
-      delete _panels[panelName][gadgetName];
-    }
-  }
-}]);
-
-// TODO(anuzis/vjoisar): make service DRY with explorationStatesService
-// Data service for keeping track of gadget instance details.
+// Data service for keeping track of gadget data and location across panels.
 oppia.factory('explorationGadgetsService', [
     '$log', '$modal', '$filter', '$location', '$rootScope',
     'changeListService', 'editorContextService', 'warningsData',
@@ -914,26 +866,34 @@ oppia.factory('explorationGadgetsService', [
   // _gadgets is a JS object with gadget_instance.name strings as keys
   // and each gadget_instance's data as values.
   var _gadgets = null;
+  // _panels is a JS object with skin panel names as keys and lists of
+  // gadget_instance.name strings as values. Lists are sorted in order
+  // that gadgets are displayed in panels that contain multiple gadgets.
+  var _panels = null;
   return {
     init: function(skin_customizations_data) {
-      var gadgets_data = {};
-      var panelContents = skin_customizations_data.panels_contents;
-      for (var i = 0; i < Object.keys(panelContents).length; i++) {
-        var panelName = Object.keys(panelContents)[i];
-        for (var j = 0; j < panelContents[panelName].length; j++) {
-          var gadgetName = panelContents[panelName][j].gadget_name;
-          gadgets_data[gadgetName] = panelContents[panelName][j];
-        }
-      }
-      var numGadgets = Object.keys(gadgets_data).length;
+      // Data structure initialization.
+      var panelsContents = skin_customizations_data.panels_contents;
+      _gadgets = this._formatGadgetsData(panelsContents);
+      _panels = this._formatPanelsData(panelsContents);
+
+      // Console logging.
+      var numGadgets = Object.keys(_gadgets).length;
+      var numPanels = Object.keys(_panels).length;
       if (numGadgets === 0) {
         $log.info('No gadgets to initialize.');
       } else {
         $log.info('Initializing ' + numGadgets + ' gadgets: ' + Object.keys(
-          gadgets_data)
+          _gadgets)
         );
       }
-      _gadgets = angular.copy(gadgets_data);
+      if (numPanels ===0) {
+        $log.info('No panels to initialize.');
+      } else {
+        $log.info('Initialized ' + numPanels + ' panels: ' + Object.keys(
+          _panels)
+        );
+      }
     },
     getGadget: function(gadgetName) {
       return angular.copy(_gadgets[gadgetName]);
@@ -941,55 +901,26 @@ oppia.factory('explorationGadgetsService', [
     setGadget: function(gadgetName, gadgetData) {
       _gadgets[gadgetName] = angular.copy(gadgetData);
     },
-    isNewGadgetNameValid: function(newGadgetName, showWarnings) {
-      if (_gadgets.hasOwnProperty(newGadgetName)) {
-        if (showWarnings) {
-          warningsData.addWarning('A gadget with this name already exists.');
-        }
-        return false;
-      }
-      return (
-        // TODO(anuzis/vjoisar): implement validatorsService.isValidGadgetName
-        validatorsService.isValidGadgetName(newGadgetName, showWarnings));
-    },
-    generateUniqueGadgetName: function(gadgetId) {
-      if (!_gadgets.hasOwnProperty(gadgetId)) {
-        return gadgetId;
-      } else {
-        var baseGadgetName = gadgetId;
-        var uniqueInteger = 2;
-        var generatedGadgetName = baseGadgetName + uniqueInteger;
-        while (_gadgets.hasOwnProperty(generatedGadgetName)) {
-          uniqueInteger++;
-          generatedGadgetName = baseGadgetName + uniqueInteger;
-        }
-        return generatedGadgetName;
-      }
-    },
     addGadget: function(gadgetData, successCallback) {
-      gadgetData.name = this.generateUniqueGadgetName(gadgetData.gadgetId);
+      // TODO(anuzis/vjoisar): refactor to update _panels as well.
+      gadgetData.name = this._generateUniqueGadgetName(gadgetData.gadgetId);
       _gadgets[gadgetData.name] = gadgetData;
       changeListService.addGadget(gadgetData);
       return;
-      /*
-      _gadgets[newGadgetName] = newGadgetTemplateService.getNewGadgetTemplate(
-        newGadgetName);
-      */
       if (successCallback) {
         successCallback(newGadgetName);
       }
-
     },
     deleteGadget: function(deleteGadgetName) {
       warningsData.clear();
-
       if (!_gadgets.hasOwnProperty(deleteGadgetName)) {
         // This warning can't be triggered in current UI.
         // Keeping as defense-in-depth for future UI changes.
-        warningsData.addWarning('No gadget with name ' + deleteGadgetName + ' exists.');
+        warningsData.addWarning(
+          'No gadget with name ' + deleteGadgetName + ' exists.'
+        );
         return;
       }
-
       $modal.open({
         // TODO(anuzis/vjoisar): implement script ID for 'modals/deleteGadget'
         // based on pattern for modals/deleteState, but outside
@@ -1017,7 +948,15 @@ oppia.factory('explorationGadgetsService', [
           }
         ]
       }).result.then(function(deleteGadgetName) {
+        // Update _gadgets
         delete _gadgets[deleteGadgetName];
+
+        // Update _panels
+        var hostPanel = this._getPanelNameFromGadgetName(deleteGadgetName);
+        var gadgetIndex = _panels[hostPanel].indexOf(deleteGadgetName);
+        _panels[hostPanel].splice(gadgetIndex, 1);
+
+        // Update changeListService
         changeListService.deleteGadget(deleteGadgetName);
       });
     },
@@ -1032,11 +971,144 @@ oppia.factory('explorationGadgetsService', [
       }
       warningsData.clear();
 
+      // Update _gadgets
       _gadgets[newGadgetName] = angular.copy(_gadgets[oldGadgetName]);
       delete _gadgets[oldGadgetName];
 
+      // Update _panels
+      var hostPanel = this._getPanelNameFromGadgetName(oldGadgetName);
+      var gadgetIndex = _panels[hostPanel].indexOf(oldGadgetName);
+      _panels[hostPanel].splice(gadgetIndex, 1, newGadgetName);
+
       // TODO(anuzis/vjoisar): Implement changeListService.renameGadget
       changeListService.renameGadget(newGadgetName, oldGadgetName);
+    },
+    addGadgetToPanel: function(gadgetName, panelName) {
+      // @sll/vjoisar: I'm thinking this method is unnecessary if we opt for a
+      // single addGadget method that requires panelName as an argument.
+      // Thoughts?
+      _panels[panelName].push(gadgetName);
+    },
+    moveGadgetBetweenPanels: function(gadgetName, sourcePanel, destPanel) {
+      // Move a gadget instance from sourcePanel to destPanel.
+
+      if (!_panels[sourcePanel].hasOwnProperty[gadgetName]) {
+        var logString = 'Attempted to move ' + gadgetName + ' gadget from ' +
+          sourcePanel + ' where it did not exist.';
+        $log.info(logString);
+      }
+
+      // Move gadget preserving original position data.
+      var sourceIndex = _panels[sourcePanel].indexOf(gadgetName);
+      _panels[sourcePanel].splice(sourceIndex, 1);
+      _panels[destPanel].push(gadgetName);
+
+      // Check validity of gadget at destination.
+      if (!this._validatePanel(destPanel)) {
+        // Restore gadget to original position in source panel.
+        _panels[sourcePanel].splice(sourceIndex, 0, gadgetName);
+        _panels[destPanel].pop();
+      }
+    },
+    getGadgetNamesInPanel: function(panelName) {
+      if (!_panels.hasOwnProperty(panelName)) {
+        var logString = 'Attempted to retrieve contents of non-existent' +
+          ' panel: ' + panelName;
+        $log.info(logString);
+        return;
+      }
+      return angular.copy(_panels[panelName]);
+    },
+    removeGadgetFromPanel: function(panelName, gadgetName) {
+      // @sll/vjoisar: Think this method is necessary? When would it be used?
+      // It seems like moveGadgetBetweenPanels and deleteGadget cover the
+      // use cases.
+      if (!_panels.hasOwnProperty(panelName)) {
+        var logString = 'Attempted to delete a gadget from a non-existent ' +
+        'panel: ' + panelName;
+        $log.info(logString);
+        return;
+      } else if (!_panels[panelName].hasOwnProperty(gadgetName)) {
+        var logString = 'Attempted to delete ' + gadgetName + ' gadget ' +
+        'that did not exist in the ' + panelName + ' panel.';
+        $log.info(logString);
+        return;
+      }
+      delete _panels[panelName][gadgetName];
+    },
+
+    // Private methods
+    _getPanelNameFromGadgetName: function(gadgetName) {
+      for (var panelName in _panels) {
+        if (_panels[panelName].indexOf(gadgetName) != -1 ) {
+          return panelName;
+        }
+      }
+      $log.info(gadgetName + ' gadget does not exist in any panel.');
+    },
+    _generateUniqueGadgetName: function(gadgetId) {
+      if (!_gadgets.hasOwnProperty(gadgetId)) {
+        return gadgetId;
+      } else {
+        var baseGadgetName = gadgetId;
+        var uniqueInteger = 2;
+        var generatedGadgetName = baseGadgetName + uniqueInteger;
+        while (_gadgets.hasOwnProperty(generatedGadgetName)) {
+          uniqueInteger++;
+          generatedGadgetName = baseGadgetName + uniqueInteger;
+        }
+        return generatedGadgetName;
+      }
+    },
+    _isNewGadgetNameValid: function(newGadgetName, showWarnings) {
+      if (_gadgets.hasOwnProperty(newGadgetName)) {
+        if (showWarnings) {
+          warningsData.addWarning('A gadget with this name already exists.');
+        }
+        return false;
+      }
+      return (
+        // TODO(anuzis/vjoisar): implement validatorsService.isValidGadgetName
+        validatorsService.isValidGadgetName(newGadgetName, showWarnings));
+    },
+    _formatGadgetsData: function(panelsContents) {
+      gadgetsData = {};
+      for (var panelName in panelsContents) {
+        for (var i = 0; i < panelsContents[panelName].length; i++) {
+          var gadgetName = panelsContents[panelName][i].gadget_name;
+          gadgetsData[gadgetName] = panelsContents[panelName][i];
+        }
+      }
+      return gadgetsData;
+    },
+    _formatPanelsData: function(panelsContents) {
+      panelsData = {};
+      for (var panelName in panelsContents) {
+        panelsData[panelName] = [];
+        // Append the name of each gadget instance in the panel.
+        for (var i = 0; i < panelsContents[panelName].length; i++) {
+          panelsData[panelName].push(
+            panelsContents[panelName][i].gadget_name
+          );
+        }
+      }
+      return panelsData;
+    },
+    // @sll: Should we consolidate all validation to the validatorsService?
+    // It seems like it might be easier to implement gadget-specific
+    // validation in this service, perhaps with a public API for other
+    // services to call.
+    _validate: function() {
+      // Validates configuration and fit of all gadgets and panels.
+      for (var panelName in _panels) {
+        this._validatePanel(panelName);
+      }
+    },
+    _validatePanel: function(panelName) {
+      // Validates fit and internal validity of all gadgets in a panel.
+      // Returns boolean.
+      // TODO(anuzis): Implement.
+      return true;
     }
   };
 }]);

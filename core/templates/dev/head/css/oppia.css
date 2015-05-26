@@ -1906,3 +1906,15 @@ div#ng-curtain {
   height: auto;
   min-height: 80px;
 }
+
+/* Styles for gadget panels and editor. */
+.conversation-skin-left-gadget-panel {
+  margin-left: 50px;
+  width: 200px;
+  height:400px;
+  position: fixed;
+  left: 0;
+  top: 100px;
+  background:white;
+  border:1px solid lightgrey;
+}
