@@ -1280,7 +1280,7 @@ oppia.factory('explorationWarningsService', [
     var statesWithoutInteractionIds = _getStatesWithoutInteractionIds();
 	    
 	    if (statesWithoutInteractionIds.length) {
-	    	if(statesWithoutInteractionIds[0] !== "First State"){
+	    	if (statesWithoutInteractionIds[0] !== "First State" && statesWithoutInteractionIds.length !== 1) {
 	      _warningsList.push({
 	        type: WARNING_TYPES.CRITICAL,
 	        message: (
@@ -1299,7 +1299,7 @@ oppia.factory('explorationWarningsService', [
         unreachableStateNames.splice(endIndex, 1);
       }
 
-	    if(statesWithoutInteractionIds !== "First State"){  
+	    if (statesWithoutInteractionIds[0] !== "First State" && statesWithoutInteractionIds.length !== 1) {  
 	      if (unreachableStateNames.length) {
 	        _warningsList.push({
 	          type: WARNING_TYPES.ERROR,
@@ -1320,7 +1320,7 @@ oppia.factory('explorationWarningsService', [
 	            deadEndStatesString = 'each of: ' + deadEndStates.join(', ');
 	          }
 
-	            if(deadEndStates[0] !== "First State"){
+	            if (deadEndStates[0] !== "First State" && deadEndStates.length !== 1) {
 	            _warningsList.push({
 	              type: WARNING_TYPES.ERROR,
 	              message: (
