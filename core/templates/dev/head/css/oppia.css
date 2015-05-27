@@ -1909,12 +1909,12 @@ div#ng-curtain {
 
 /* Styles for gadget panels and editor. */
 .conversation-skin-left-gadget-panel {
-  margin-left: 50px;
-  width: 200px;
-  height:400px;
-  position: fixed;
+  background: white;
+  border: 1px solid lightgrey;
+  height: 400px;
   left: 0;
+  margin-left: 50px;
+  position: fixed;
   top: 100px;
-  background:white;
-  border:1px solid lightgrey;
+  width: 200px;
 }

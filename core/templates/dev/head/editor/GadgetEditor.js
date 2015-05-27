@@ -29,7 +29,7 @@ oppia.controller('GadgetEditor', [
     $scope.openAddGadgetModal = function() {
       $modal.open({
         templateUrl: 'modals/addGadget',
-        backdrop: true,
+        backdrop: 'static',
         resolve: {},
         controller: [
           '$scope', '$modalInstance', 'GADGET_SPECS',
@@ -73,7 +73,9 @@ oppia.controller('GadgetEditor', [
         $scope.$parent.gadgetId = result.selectedGadgetId;
         //TODO(anuzis/vjoisar): Add logic for multiple state visibility.
         result['visibleInStates'] = editorContextService.getActiveStateName();
-        explorationGadgetsService.addGadget(result);
+        //TODO(anuzis/vjoisar): Add logic to select position from the form.
+        var panelName = 'left';
+        explorationGadgetsService.addGadget(result, panelName);
       }, function() {
         console.log('Gadget modal closed');
       });

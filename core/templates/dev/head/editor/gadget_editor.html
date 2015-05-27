@@ -1,4 +1,4 @@
-<div ng-controller="GadgetEditor" id="tutorialGadgetCreation">
+<div ng-controller="GadgetEditor">
   <span style="font-size: 16px;">
     <strong>Gadgets</strong>
   </span>
@@ -9,8 +9,7 @@
   </md-card>
   <div ng-if="false"> TODO(anuzis/vjoisar):(resolve gadget id in modal controller)</div>
   <div ng-if="!!gadgetId"
-      class="gadget-panel conversation-skin-left-gadget-panel ng-isolate-scope"
-      style="margin-left: 50px;width: 200px;height:400px;position: fixed;left: 0;top: 100px; background:white;border:1px solid lightgrey;">
+      class="gadget-panel conversation-skin-left-gadget-panel ng-isolate-scope">
       <div style="display:inline-block">
         <[gadgetId]>
         <img src="/third_party/static/material-design-icons-1.0.1/ic_close_black_48dp.png" class="protractor-test-delete-gadget oppia-delete-interaction-button oppia-transition-200" ng-click="deleteGadget(gadgetName)"></span>

@@ -447,7 +447,7 @@ class ExplorationDomainUnitTests(test_utils.GenericTestBase):
                 gadget_instance.validate()
 
             gadget_instance.name = 'ASuperLongGadgetNameThatExceedsTheLimit'
-            max_length = exp_domain.GadgetInstance.MAX_GADGET_NAME_LENGTH
+            max_length = exp_domain.GadgetInstance._MAX_GADGET_NAME_LENGTH
             with self.assertRaisesRegexp(
                      utils.ValidationError,
                      'ASuperLongGadgetNameThatExceedsTheLimit gadget name'
@@ -461,8 +461,36 @@ class ExplorationDomainUnitTests(test_utils.GenericTestBase):
                      ' Received: VERYGADGET!'):
                 gadget_instance.validate()
 
-            # Names with spaces should pass.
-            gadget_instance.name = 'Name With Spaces'
+            gadget_instance.name = 'Name with \t tab'
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget names must be alphanumeric. Spaces are allowed.'
+                     ' Received: Name with \t tab'):
+                gadget_instance.validate()
+
+            gadget_instance.name = 'Name with \n newline'
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget names must be alphanumeric. Spaces are allowed.'
+                     ' Received: Name with \n newline'):
+                gadget_instance.validate()
+
+            gadget_instance.name = 'Name with   3 space'
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget names must be alphanumeric. Spaces are allowed.'
+                     ' Received: Name with   3 space'):
+                gadget_instance.validate()
+
+            gadget_instance.name = ' untrim whitespace '
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget names must be alphanumeric. Spaces are allowed.'
+                     ' Received:  untrim whitespace '):
+                gadget_instance.validate()
+
+            # Names with spaces and number should pass.
+            gadget_instance.name = 'Space and 1'
             gadget_instance.validate()
 
     def test_exploration_get_gadget_ids(self):
@@ -1117,8 +1145,8 @@ class GadgetInstanceUnitTests(test_utils.GenericTestBase):
 
             with self.assertRaisesRegexp(
                     utils.ValidationError,
-                    'Size exceeded: left panel width of 4600 exceeds limit of'
-                    ' 100'):
+                    'Size exceeded: left panel width of 4600 exceeds limit of '
+                    '100'):
                 exploration.validate()
 
         # Assert internal validation against CustomizationArgSpecs.
@@ -1133,8 +1161,8 @@ class GadgetInstanceUnitTests(test_utils.GenericTestBase):
         panel_contents_dict['left'].append(test_gadget_instance)
         with self.assertRaisesRegexp(
                 utils.ValidationError,
-                "'left' panel expected at most 1 gadget, but 2 gadgets are"
-                " visible in state 'New state'."):
+                "'left' panel expected at most 1 gadget, but 2 gadgets are "
+                "visible in state 'New state'."):
             exploration.validate()
 
         # Assert that an error is raised when a gadget is not visible in any

@@ -554,7 +554,7 @@ class InteractionInstance(object):
 class GadgetInstance(object):
     """Value object for an instance of a gadget."""
 
-    MAX_GADGET_NAME_LENGTH = 20
+    _MAX_GADGET_NAME_LENGTH = 20
 
     def __init__(self, gadget_id, gadget_name,
                  visible_in_states, customization_args):
@@ -599,11 +599,11 @@ class GadgetInstance(object):
                     type(gadget_name).__name__)
             )
 
-        if len(gadget_name) > GadgetInstance.MAX_GADGET_NAME_LENGTH:
+        if len(gadget_name) > GadgetInstance._MAX_GADGET_NAME_LENGTH:
             raise utils.ValidationError(
                 '%s gadget name exceeds maximum length of %d' % (
                     gadget_name,
-                    GadgetInstance.MAX_GADGET_NAME_LENGTH
+                    GadgetInstance._MAX_GADGET_NAME_LENGTH
                 )
             )
 

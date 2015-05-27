@@ -870,12 +870,95 @@ oppia.factory('explorationGadgetsService', [
   // gadget_instance.name strings as values. Lists are sorted in order
   // that gadgets are displayed in panels that contain multiple gadgets.
   var _panels = null;
+
+
+
+  // Private methods
+  var _getPanelNameFromGadgetName = function(gadgetName) {
+    for (var panelName in _panels) {
+      if (_panels[panelName].indexOf(gadgetName) != -1 ) {
+        return panelName;
+      }
+    }
+    $log.info(gadgetName + ' gadget does not exist in any panel.');
+  };
+
+  var _generateUniqueGadgetName = function(gadgetId) {
+    if (!_gadgets.hasOwnProperty(gadgetId)) {
+      return gadgetId;
+    } else {
+      var baseGadgetName = gadgetId;
+      var uniqueInteger = 2;
+      var generatedGadgetName = baseGadgetName + uniqueInteger;
+      while (_gadgets.hasOwnProperty(generatedGadgetName)) {
+        uniqueInteger++;
+        generatedGadgetName = baseGadgetName + uniqueInteger;
+      }
+      return generatedGadgetName;
+    }
+  };
+
+  var _isNewGadgetNameValid = function(newGadgetName, showWarnings) {
+    if (_gadgets.hasOwnProperty(newGadgetName)) {
+      if (showWarnings) {
+        warningsData.addWarning('A gadget with this name already exists.');
+      }
+      return false;
+    }
+    return (
+      // TODO(anuzis/vjoisar): implement validatorsService.isValidGadgetName
+      validatorsService.isValidGadgetName(newGadgetName, showWarnings));
+  };
+  
+  var _formatGadgetsData = function(panelsContents) {
+    gadgetsData = {};
+    for (var panelName in panelsContents) {
+      for (var i = 0; i < panelsContents[panelName].length; i++) {
+        var gadgetName = panelsContents[panelName][i].gadget_name;
+        gadgetsData[gadgetName] = panelsContents[panelName][i];
+      }
+    }
+    return gadgetsData;
+  };
+  
+  var _formatPanelsData = function(panelsContents) {
+    panelsData = {};
+    for (var panelName in panelsContents) {
+      panelsData[panelName] = [];
+      // Append the name of each gadget instance in the panel.
+      for (var i = 0; i < panelsContents[panelName].length; i++) {
+        panelsData[panelName].push(
+          panelsContents[panelName][i].gadget_name
+        );
+      }
+    }
+    return panelsData;
+  };
+  
+  // @sll: Should we consolidate all validation to the validatorsService?
+  // It seems like it might be easier to implement gadget-specific
+  // validation in this service, perhaps with a public API for other
+  // services to call.
+  var _validate = function() {
+    // Validates configuration and fit of all gadgets and panels.
+    for (var panelName in _panels) {
+      this._validatePanel(panelName);
+    }
+  };
+  
+  var _validatePanel = function(panelName) {
+    // Validates fit and internal validity of all gadgets in a panel.
+    // Returns boolean.
+    // TODO(anuzis): Implement.
+    return true;
+  };
+
   return {
     init: function(skin_customizations_data) {
       // Data structure initialization.
       var panelsContents = skin_customizations_data.panels_contents;
-      _gadgets = this._formatGadgetsData(panelsContents);
-      _panels = this._formatPanelsData(panelsContents);
+      _gadgets = _formatGadgetsData(panelsContents);
+      _panels = _formatPanelsData(panelsContents);
 
       // Console logging.
       var numGadgets = Object.keys(_gadgets).length;
@@ -901,15 +984,15 @@ oppia.factory('explorationGadgetsService', [
     setGadget: function(gadgetName, gadgetData) {
       _gadgets[gadgetName] = angular.copy(gadgetData);
     },
-    addGadget: function(gadgetData, successCallback) {
+    addGadget: function(gadgetData, panelName) {
       // TODO(anuzis/vjoisar): refactor to update _panels as well.
-      gadgetData.name = this._generateUniqueGadgetName(gadgetData.gadgetId);
+      gadgetData.name = _generateUniqueGadgetName(gadgetData.gadgetId);
       _gadgets[gadgetData.name] = gadgetData;
-      changeListService.addGadget(gadgetData);
-      return;
-      if (successCallback) {
-        successCallback(newGadgetName);
+      if(!_panels[panelName]) {
+        _panels[panelName] = [];
       }
+      _panels[panelName].push(gadgetData.name);
+      changeListService.addGadget(gadgetData);
     },
     deleteGadget: function(deleteGadgetName) {
       warningsData.clear();
@@ -952,7 +1035,7 @@ oppia.factory('explorationGadgetsService', [
         delete _gadgets[deleteGadgetName];
 
         // Update _panels
-        var hostPanel = this._getPanelNameFromGadgetName(deleteGadgetName);
+        var hostPanel = _getPanelNameFromGadgetName(deleteGadgetName);
         var gadgetIndex = _panels[hostPanel].indexOf(deleteGadgetName);
         _panels[hostPanel].splice(gadgetIndex, 1);
 
@@ -976,18 +1059,12 @@ oppia.factory('explorationGadgetsService', [
       delete _gadgets[oldGadgetName];
 
       // Update _panels
-      var hostPanel = this._getPanelNameFromGadgetName(oldGadgetName);
+      var hostPanel = _getPanelNameFromGadgetName(oldGadgetName);
       var gadgetIndex = _panels[hostPanel].indexOf(oldGadgetName);
       _panels[hostPanel].splice(gadgetIndex, 1, newGadgetName);
 
       // TODO(anuzis/vjoisar): Implement changeListService.renameGadget
       changeListService.renameGadget(newGadgetName, oldGadgetName);
-    },
-    addGadgetToPanel: function(gadgetName, panelName) {
-      // @sll/vjoisar: I'm thinking this method is unnecessary if we opt for a
-      // single addGadget method that requires panelName as an argument.
-      // Thoughts?
-      _panels[panelName].push(gadgetName);
     },
     moveGadgetBetweenPanels: function(gadgetName, sourcePanel, destPanel) {
       // Move a gadget instance from sourcePanel to destPanel.
@@ -1004,7 +1081,7 @@ oppia.factory('explorationGadgetsService', [
       _panels[destPanel].push(gadgetName);
 
       // Check validity of gadget at destination.
-      if (!this._validatePanel(destPanel)) {
+      if (!_validatePanel(destPanel)) {
         // Restore gadget to original position in source panel.
         _panels[sourcePanel].splice(sourceIndex, 0, gadgetName);
         _panels[destPanel].pop();
@@ -1018,97 +1095,6 @@ oppia.factory('explorationGadgetsService', [
         return;
       }
       return angular.copy(_panels[panelName]);
-    },
-    removeGadgetFromPanel: function(panelName, gadgetName) {
-      // @sll/vjoisar: Think this method is necessary? When would it be used?
-      // It seems like moveGadgetBetweenPanels and deleteGadget cover the
-      // use cases.
-      if (!_panels.hasOwnProperty(panelName)) {
-        var logString = 'Attempted to delete a gadget from a non-existent ' +
-        'panel: ' + panelName;
-        $log.info(logString);
-        return;
-      } else if (!_panels[panelName].hasOwnProperty(gadgetName)) {
-        var logString = 'Attempted to delete ' + gadgetName + ' gadget ' +
-        'that did not exist in the ' + panelName + ' panel.';
-        $log.info(logString);
-        return;
-      }
-      delete _panels[panelName][gadgetName];
-    },
-
-    // Private methods
-    _getPanelNameFromGadgetName: function(gadgetName) {
-      for (var panelName in _panels) {
-        if (_panels[panelName].indexOf(gadgetName) != -1 ) {
-          return panelName;
-        }
-      }
-      $log.info(gadgetName + ' gadget does not exist in any panel.');
-    },
-    _generateUniqueGadgetName: function(gadgetId) {
-      if (!_gadgets.hasOwnProperty(gadgetId)) {
-        return gadgetId;
-      } else {
-        var baseGadgetName = gadgetId;
-        var uniqueInteger = 2;
-        var generatedGadgetName = baseGadgetName + uniqueInteger;
-        while (_gadgets.hasOwnProperty(generatedGadgetName)) {
-          uniqueInteger++;
-          generatedGadgetName = baseGadgetName + uniqueInteger;
-        }
-        return generatedGadgetName;
-      }
-    },
-    _isNewGadgetNameValid: function(newGadgetName, showWarnings) {
-      if (_gadgets.hasOwnProperty(newGadgetName)) {
-        if (showWarnings) {
-          warningsData.addWarning('A gadget with this name already exists.');
-        }
-        return false;
-      }
-      return (
-        // TODO(anuzis/vjoisar): implement validatorsService.isValidGadgetName
-        validatorsService.isValidGadgetName(newGadgetName, showWarnings));
-    },
-    _formatGadgetsData: function(panelsContents) {
-      gadgetsData = {};
-      for (var panelName in panelsContents) {
-        for (var i = 0; i < panelsContents[panelName].length; i++) {
-          var gadgetName = panelsContents[panelName][i].gadget_name;
-          gadgetsData[gadgetName] = panelsContents[panelName][i];
-        }
-      }
-      return gadgetsData;
-    },
-    _formatPanelsData: function(panelsContents) {
-      panelsData = {};
-      for (var panelName in panelsContents) {
-        panelsData[panelName] = [];
-        // Append the name of each gadget instance in the panel.
-        for (var i = 0; i < panelsContents[panelName].length; i++) {
-          panelsData[panelName].push(
-            panelsContents[panelName][i].gadget_name
-          );
-        }
-      }
-      return panelsData;
-    },
-    // @sll: Should we consolidate all validation to the validatorsService?
-    // It seems like it might be easier to implement gadget-specific
-    // validation in this service, perhaps with a public API for other
-    // services to call.
-    _validate: function() {
-      // Validates configuration and fit of all gadgets and panels.
-      for (var panelName in _panels) {
-        this._validatePanel(panelName);
-      }
-    },
-    _validatePanel: function(panelName) {
-      // Validates fit and internal validity of all gadgets in a panel.
-      // Returns boolean.
-      // TODO(anuzis): Implement.
-      return true;
     }
   };
 }]);
