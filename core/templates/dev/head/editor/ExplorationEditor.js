@@ -29,23 +29,21 @@ oppia.constant('GADGET_SPECS', window.GLOBALS ? GLOBALS.GADGET_SPECS : {});
 oppia.controller('ExplorationEditor', [
   '$scope', '$http', '$window', '$rootScope', '$log', '$timeout',
   'explorationData', 'editorContextService', 'explorationTitleService',
-  'explorationCategoryService', 'explorationGadgetPanelsService',
-  'explorationGadgetsService', 'explorationObjectiveService',
-  'explorationLanguageCodeService', 'explorationRightsService',
-  'explorationInitStateNameService', 'explorationTagsService',
-  'editabilityService', 'explorationStatesService', 'routerService',
-  'graphDataService', 'stateEditorTutorialFirstTimeService',
+  'explorationCategoryService', 'explorationGadgetsService',
+  'explorationObjectiveService', 'explorationLanguageCodeService',
+  'explorationRightsService', 'explorationInitStateNameService',
+  'explorationTagsService', 'editabilityService', 'explorationStatesService',
+  'routerService', 'graphDataService', 'stateEditorTutorialFirstTimeService',
   'explorationParamSpecsService', 'explorationParamChangesService',
   'explorationWarningsService', '$templateCache',
   function(
     $scope, $http, $window, $rootScope, $log, $timeout,
     explorationData,  editorContextService, explorationTitleService,
-    explorationCategoryService, explorationGadgetPanelsService,
-    explorationGadgetsService, explorationObjectiveService,
-    explorationLanguageCodeService, explorationRightsService,
-    explorationInitStateNameService, explorationTagsService,
-    editabilityService, explorationStatesService, routerService,
-    graphDataService,  stateEditorTutorialFirstTimeService,
+    explorationCategoryService, explorationGadgetsService,
+    explorationObjectiveService, explorationLanguageCodeService,
+    explorationRightsService, explorationInitStateNameService,
+    explorationTagsService, editabilityService, explorationStatesService,
+    routerService, graphDataService,  stateEditorTutorialFirstTimeService,
     explorationParamSpecsService, explorationParamChangesService,
     explorationWarningsService, $templateCache) {
 
@@ -97,7 +95,6 @@ oppia.controller('ExplorationEditor', [
 
       explorationTitleService.init(data.title);
       explorationCategoryService.init(data.category);
-      explorationGadgetPanelsService.init(data.skin_customizations);
       explorationGadgetsService.init(data.skin_customizations);
       explorationObjectiveService.init(data.objective);
       explorationLanguageCodeService.init(data.language_code);
@@ -108,7 +105,6 @@ oppia.controller('ExplorationEditor', [
 
       $scope.explorationTitleService = explorationTitleService;
       $scope.explorationCategoryService = explorationCategoryService;
-      $scope.explorationGadgetPanelsService = explorationGadgetPanelsService;
       $scope.explorationGadgetsService = explorationGadgetsService;
       $scope.explorationObjectiveService = explorationObjectiveService;
       $scope.explorationRightsService = explorationRightsService;

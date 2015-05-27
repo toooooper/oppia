@@ -370,7 +370,10 @@ param_changes: []
 param_specs: {}
 schema_version: 5
 skin_customizations:
-  panels_contents: {}
+  panels_contents:
+    bottom: []
+    left: []
+    right: []
 states:
   %s:
     content:
@@ -428,7 +431,10 @@ param_changes: []
 param_specs: {}
 schema_version: 5
 skin_customizations:
-  panels_contents: {}
+  panels_contents:
+    bottom: []
+    left: []
+    right: []
 states:
   %s:
     content:

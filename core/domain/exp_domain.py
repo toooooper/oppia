@@ -47,6 +47,10 @@ STATE_PROPERTY_CONTENT = 'content'
 STATE_PROPERTY_INTERACTION_ID = 'widget_id'
 STATE_PROPERTY_INTERACTION_CUST_ARGS = 'widget_customization_args'
 STATE_PROPERTY_INTERACTION_HANDLERS = 'widget_handlers'
+# @sll: Do we want to expand on this existing pattern? Appears alright to me,
+# but unsure based on backwards compatibility comments above.
+GADGET_PROPERTY_VISIBILITY = 'gadget_visibility'
+GADGET_PROPERTY_CUST_ARGS = 'gadget_customization_args'
 # Kept for legacy purposes; not used anymore.
 STATE_PROPERTY_INTERACTION_STICKY = 'widget_sticky'
 
@@ -76,6 +80,10 @@ class ExplorationChange(object):
         STATE_PROPERTY_INTERACTION_STICKY,
         STATE_PROPERTY_INTERACTION_HANDLERS)
 
+    GADGET_PROPERTIES = (
+        GADGET_PROPERTY_VISIBILITY,
+        GADGET_PROPERTY_VISIBILITY)
+
     EXPLORATION_PROPERTIES = (
         'title', 'category', 'objective', 'language_code', 'tags',
         'blurb', 'author_notes', 'param_specs', 'param_changes',
@@ -94,11 +102,17 @@ class ExplorationChange(object):
         - 'delete_state' (with state_name)
         - 'edit_state_property' (with state_name, property_name, new_value and,
             optionally, old_value)
+        - add_gadget(with gadget_dict and panel_name)
+        - rename_gadget(with old_gadget_name and new_gadget_name)
+        - delete_gadget(with gadget_name)
+        - edit_gadget_property(with gadget_name, property_name, new_value, and
+            optionally, old_value)
         - 'edit_exploration_property' (with property_name, new_value and,
             optionally, old_value)
 
         For a state, property_name must be one of STATE_PROPERTIES. For an
         exploration, property_name must be one of EXPLORATION_PROPERTIES.
+        For a gadget, property_name must be one of GADGET_PROPERTIES.
         """
         if 'cmd' not in change_dict:
             raise Exception('Invalid change_dict: %s' % change_dict)
@@ -122,6 +136,21 @@ class ExplorationChange(object):
             if (change_dict['property_name'] not in
                     self.EXPLORATION_PROPERTIES):
                 raise Exception('Invalid change_dict: %s' % change_dict)
+            self.property_name = change_dict['property_name']
+            self.new_value = change_dict['new_value']
+            self.old_value = change_dict.get('old_value')
+        elif self.cmd == 'add_gadget':
+            self.gadget_dict = change_dict['gadget_dict']
+            self.panel_name = change_dict['panel_name']
+        elif self.cmd == 'rename_gadget':
+            self.old_gadget_name = change_dict['old_gadget_name']
+            self.new_gadget_name = change_dict['new_gadget_name']
+        elif self.cmd == 'delete_gadget':
+            self.gadget_name = change_dict['gadget_name']
+        elif self.cmd == 'edit_gadget_property':
+            if change_dict['property_name'] not in self.GADGET_PROPERTIES:
+                raise Exception('Invalid change_dict' % change_dict)
+            self.gadget_name = change_dict['gadget_name']
             self.property_name = change_dict['property_name']
             self.new_value = change_dict['new_value']
             self.old_value = change_dict.get('old_value')
@@ -554,6 +583,8 @@ class InteractionInstance(object):
 class GadgetInstance(object):
     """Value object for an instance of a gadget."""
 
+    _MAX_GADGET_NAME_LENGTH = 20
+
     def __init__(self, gadget_id, gadget_name,
                  visible_in_states, customization_args):
         # Backend ID referring to the gadget's type in gadget registry.
@@ -583,6 +614,34 @@ class GadgetInstance(object):
         """Height in pixels."""
         return self.gadget.get_height(self.customization_args)
 
+    @staticmethod
+    def _validate_gadget_name(gadget_name):
+        """Validates gadget_name is a non-empty string of alphanumerics
+        allowing spaces."""
+        if gadget_name == '':
+            raise utils.ValidationError(
+                'Gadget name must not be an empty string.')
+
+        if not isinstance(gadget_name, basestring):
+            raise utils.ValidationError(
+                'Gadget name must be a string. Received type: %s' % str(
+                    type(gadget_name).__name__)
+            )
+
+        if len(gadget_name) > GadgetInstance._MAX_GADGET_NAME_LENGTH:
+            raise utils.ValidationError(
+                '%s gadget name exceeds maximum length of %d' % (
+                    gadget_name,
+                    GadgetInstance._MAX_GADGET_NAME_LENGTH
+                )
+            )
+
+        if not re.search(feconf.ALPHANUMERIC_SPACE_REGEX, gadget_name):
+            raise utils.ValidationError(
+                'Gadget names must be alphanumeric. Spaces are allowed.'
+                ' Received: %s' % gadget_name
+            )
+
     def validate(self):
         """Validate attributes of this GadgetInstance."""
         try:
@@ -590,6 +649,8 @@ class GadgetInstance(object):
         except KeyError:
             raise utils.ValidationError(
                 'Unknown gadget with ID %s is not in the registry.' % self.id)
+
+        self._validate_gadget_name(self.name)
 
         unknown_customization_arguments = set(
             self.customization_args.iterkeys()) - set(
@@ -639,6 +700,14 @@ class GadgetInstance(object):
             gadget_dict['visible_in_states'],
             gadget_dict['customization_args'])
 
+    def update_customization_args(self, customization_args):
+        """Updates the GadgetInstance's customization arguments."""
+        self.customization_args = customization_args
+
+    def update_visibility(self, visible_in_states):
+        """Updates the GadgetInstance's visibility in different states."""
+        self.visible_in_states = visible_in_states
+
     def _get_full_customization_args(self):
         """Populates the customization_args dict of the gadget with
         default values, if any of the expected customization_args are missing.
@@ -656,11 +725,16 @@ class GadgetInstance(object):
 class SkinInstance(object):
     """Domain object for a skin instance."""
 
-    def __init__(self, skin_id, skin_customizations):
+    def __init__(self, skin_id, skin_customizations=None):
         self.skin_id = skin_id
         # panel_contents_dict has gadget_panel_name strings as keys and
         # lists of GadgetInstance instances as values.
         self.panel_contents_dict = {}
+
+        if skin_customizations is None:
+            skin_customizations = SkinInstance._default_skin_customizations(
+                skin_id
+            )
 
         for panel_name, gdict_list in skin_customizations[
                 'panels_contents'].iteritems():
@@ -673,6 +747,15 @@ class SkinInstance(object):
     def skin(self):
         """Skin spec for validation and derived properties."""
         return skins_services.Registry.get_skin_by_id(self.skin_id)
+
+    @staticmethod
+    def _default_skin_customizations(skin_id):
+        """Generates default skin customizations when none are specified."""
+        skin = skins_services.Registry.get_skin_by_id(skin_id)
+        panels_contents = {
+            panel_name: [] for panel_name in skin.panels_properties.keys()
+        }
+        return {'panels_contents': panels_contents}
 
     def validate(self):
         """Validates that gadgets fit the skin panel dimensions, and that the
@@ -1012,8 +1095,8 @@ class Exploration(object):
 
         return cls(
             exploration_id, title, category, objective, language_code, [], '',
-            '', 'conversation_v1', feconf.DEFAULT_SKIN_CUSTOMIZATIONS,
-            feconf.DEFAULT_INIT_STATE_NAME, states_dict, {}, [], 0)
+            '', 'conversation_v1', None, feconf.DEFAULT_INIT_STATE_NAME,
+            states_dict, {}, [], 0)
 
     @classmethod
     def _require_valid_name(cls, name, name_type):
@@ -1471,6 +1554,76 @@ class Exploration(object):
 
         del self.states[state_name]
 
+    # Methods relating to gadgets.
+    def add_gadget(self, gadget_dict, panel_name):
+        """Adds a gadget to the associated panel."""
+        gadget_instance = GadgetInstance(
+            gadget_dict['gadget_id'], gadget_dict['gadget_name'],
+            gadget_dict['visible_in_states'],
+            gadget_dict['customization_args'])
+
+        self.skin_instance.panel_contents_dict[panel_name].append(
+            gadget_instance)
+
+    def rename_gadget(self, old_gadget_name, new_gadget_name):
+        """Renames the given gadget."""
+        if old_gadget_name not in self._gadget_names:
+            raise ValueError('Gadget %s does not exist.' % old_gadget_name)
+        if (old_gadget_name != new_gadget_name and
+                new_gadget_name in self._gadget_names):
+            raise ValueError('Duplicate gadget name: %s' % new_gadget_name)
+
+        if old_gadget_name == new_gadget_name:
+            return
+
+        GadgetInstance._validate_gadget_name(new_gadget_name)
+
+        gadget_instance = self.get_gadget_instance_by_name(old_gadget_name)
+        gadget_instance.name = new_gadget_name
+
+    def delete_gadget(self, gadget_name):
+        """Deletes the given gadget."""
+        if gadget_name not in self._gadget_names:
+            raise ValueError('Gadget %s does not exist' % gadget_name)
+
+        panel_name = self._get_panel_name_for_gadget(gadget_name)
+        gadget_index = None
+        for index in range(len(
+            self.skin_instance.panel_contents_dict[panel_name])):
+            if self.skin_instance.panel_contents_dict[
+                    panel_name][index].name == gadget_name:
+                gadget_index = index
+                break
+        del self.skin_instance.panel_contents_dict[panel_name][gadget_index]
+
+    def get_gadget_instance_by_name(self, gadget_name):
+        """Returns the GadgetInstance with the given name."""
+        for panel_name in self.skin_instance.panel_contents_dict.iterkeys():
+            for gadget_instance in self.skin_instance.panel_contents_dict[
+                panel_name]:
+                if gadget_instance.name == gadget_name:
+                    return gadget_instance
+        raise ValueError('Gadget %s does not exist.' % gadget_name)
+
+    def _get_panel_name_for_gadget(self, gadget_name):
+        """Returns the panel name for the given GadgetInstance."""
+        for panel_name in self.skin_instance.panel_contents_dict.iterkeys():
+            for gadget_instance in self.skin_instance.panel_contents_dict[
+            panel_name]:
+                if gadget_instance.name == gadget_name:
+                    return panel_name
+        raise ValueError('Gadget %s does not exist.' % gadget_name)
+
+    @property
+    def _gadget_names(self):
+        """Convenience method to query against current gadget names."""
+        gadget_names = set()
+        for panel_name in self.skin_instance.panel_contents_dict.iterkeys():
+            for gadget_instance in self.skin_instance.panel_contents_dict[
+            panel_name]:
+                gadget_names.add(gadget_instance.name)
+        return gadget_names
+
     # The current version of the exploration schema. If any backward-
     # incompatible changes are made to the exploration schema in the YAML
     # definitions, this version number must be changed and a migration process
@@ -1530,7 +1683,8 @@ class Exploration(object):
         del exploration_dict['skill_tags']
 
         exploration_dict['skin_customizations'] = (
-            feconf.DEFAULT_SKIN_CUSTOMIZATIONS)
+            SkinInstance._default_skin_customizations(
+                exploration_dict['default_skin']))
 
         return exploration_dict
 

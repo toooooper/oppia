@@ -392,6 +392,23 @@ def apply_change_list(exploration_id, change_list):
                 elif (change.property_name ==
                         exp_domain.STATE_PROPERTY_INTERACTION_HANDLERS):
                     state.update_interaction_handlers(change.new_value)
+            elif change.cmd == 'add_gadget':
+                exploration.add_gadget(change.gadget_dict, change.panel_name)
+            elif change.cmd == 'rename_gadget':
+                exploration.rename_gadget(
+                    change.old_gadget_name, change.new_gadget_name)
+            elif change.cmd == 'delete_gadget':
+                exploration.delete_gadget(change.gadget_name)
+            elif change.cmd == 'edit_gadget_property':
+                gadget_instance = exploration.get_gadget_instance_by_name(
+                    change.gadget_name)
+                if (change.property_name ==
+                        exp_domain.GADGET_PROPERTY_VISIBILITY):
+                    gadget_instance.update_visibility(change.new_value)
+                elif (change.property_name ==
+                        exp_domain.GADGET_PROPERTY_CUST_ARGS):
+                    gadget_instance.update_customization_args(
+                        change.new_value)
             elif change.cmd == 'edit_exploration_property':
                 if change.property_name == 'title':
                     exploration.update_title(change.new_value)
@@ -451,6 +468,8 @@ def get_summary_of_change_list(base_exploration, change_list):
     """
     # TODO(sll): This really needs tests, especially the diff logic. Probably
     # worth comparing with the actual changed exploration.
+
+    # TODO(anuzis): Cover gadget changes in this change summary method.
 
     # Ensure that the original exploration does not get altered.
     exploration = copy.deepcopy(base_exploration)

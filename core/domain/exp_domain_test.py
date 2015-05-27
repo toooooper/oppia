@@ -45,7 +45,10 @@ param_changes: []
 param_specs: {}
 schema_version: 5
 skin_customizations:
-  panels_contents: {}
+  panels_contents:
+    bottom: []
+    left: []
+    right: []
 states:
   %s:
     content:
@@ -375,7 +378,7 @@ class ExplorationDomainUnitTests(test_utils.GenericTestBase):
 
         with self.swap(feconf, 'ALLOWED_GADGETS', TEST_GADGETS):
             gadget_instance = exploration.skin_instance.panel_contents_dict[
-            'left'][0]
+                'left'][0]
 
             # Force a GadgetInstance to require certain state names.
             gadget_instance.visible_in_states.extend(['DEF', 'GHI'])
@@ -423,6 +426,75 @@ class ExplorationDomainUnitTests(test_utils.GenericTestBase):
                     utils.ValidationError,
                     'non_existent_panel panel not found in skin conversation_v1'):
                 exploration.validate()
+
+    def test_gadget_name_validation(self):
+        """Test that gadget naming conditions validate properly."""
+        exploration = exp_domain.Exploration.from_yaml(
+            'exp1', 'Title', 'Category', SAMPLE_YAML_CONTENT_WITH_GADGETS)
+
+        with self.swap(feconf, 'ALLOWED_GADGETS', TEST_GADGETS):
+            gadget_instance = exploration.skin_instance.panel_contents_dict[
+                'left'][0]
+            gadget_instance.validate()
+
+            gadget_instance.name = ''
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget name must not be an empty string.'):
+                gadget_instance.validate()
+
+            gadget_instance.name = 0
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget name must be a string. Received type: int'):
+                gadget_instance.validate()
+
+            gadget_instance.name = 'ASuperLongGadgetNameThatExceedsTheLimit'
+            max_length = exp_domain.GadgetInstance._MAX_GADGET_NAME_LENGTH
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'ASuperLongGadgetNameThatExceedsTheLimit gadget name'
+                     ' exceeds maximum length of %d' % max_length):
+                gadget_instance.validate()
+
+            gadget_instance.name = 'VERYGADGET!'
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget names must be alphanumeric. Spaces are allowed.'
+                     ' Received: VERYGADGET!'):
+                gadget_instance.validate()
+
+            gadget_instance.name = 'Name with \t tab'
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget names must be alphanumeric. Spaces are allowed.'
+                     ' Received: Name with \t tab'):
+                gadget_instance.validate()
+
+            gadget_instance.name = 'Name with \n newline'
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget names must be alphanumeric. Spaces are allowed.'
+                     ' Received: Name with \n newline'):
+                gadget_instance.validate()
+
+            gadget_instance.name = 'Name with   3 space'
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget names must be alphanumeric. Spaces are allowed.'
+                     ' Received: Name with   3 space'):
+                gadget_instance.validate()
+
+            gadget_instance.name = ' untrim whitespace '
+            with self.assertRaisesRegexp(
+                     utils.ValidationError,
+                     'Gadget names must be alphanumeric. Spaces are allowed.'
+                     ' Received:  untrim whitespace '):
+                gadget_instance.validate()
+
+            # Names with spaces and number should pass.
+            gadget_instance.name = 'Space and 1'
+            gadget_instance.validate()
 
     def test_exploration_get_gadget_ids(self):
         """Test that Exploration.get_gadget_ids returns apt results."""
@@ -783,7 +855,10 @@ param_changes: []
 param_specs: {}
 schema_version: 5
 skin_customizations:
-  panels_contents: {}
+  panels_contents:
+    bottom: []
+    left: []
+    right: []
 states:
   (untitled state):
     content:
@@ -907,7 +982,10 @@ class ConversionUnitTests(test_utils.GenericTestBase):
             },
             'param_changes': [],
             'param_specs': {},
-            'skin_customizations': feconf.DEFAULT_SKIN_CUSTOMIZATIONS,
+            'skin_customizations': (
+                exp_domain.SkinInstance._default_skin_customizations(
+                    exploration.default_skin)
+            ),
         })
 
 
@@ -1002,6 +1080,12 @@ class SkinInstanceUnitTests(test_utils.GenericTestBase):
             skin_instance.get_state_names_required_by_gadgets(),
             ['New state', 'Second state'])
 
+    def test_generation_of_default_skin_customizations(self):
+        """Tests that default skin customizations are created properly."""
+        skin_instance = exp_domain.SkinInstance('conversation_v1')
+        self.assertEqual(skin_instance.panel_contents_dict,
+            {'bottom': [], 'left': [], 'right': []})
+
     def test_conversion_of_skin_to_and_from_dict(self):
         """Tests conversion of SkinInstance to and from dict representations."""
         exploration = exp_domain.Exploration.from_yaml(
@@ -1076,7 +1160,8 @@ class GadgetInstanceUnitTests(test_utils.GenericTestBase):
 
             with self.assertRaisesRegexp(
                     utils.ValidationError,
-                    'Size exceeded: left panel width of 4600 exceeds limit of 100'):
+                    'Size exceeded: left panel width of 4600 exceeds limit of '
+                    '100'):
                 exploration.validate()
 
         # Assert internal validation against CustomizationArgSpecs.
@@ -1091,7 +1176,8 @@ class GadgetInstanceUnitTests(test_utils.GenericTestBase):
         panel_contents_dict['left'].append(test_gadget_instance)
         with self.assertRaisesRegexp(
                 utils.ValidationError,
-                "'left' panel expected at most 1 gadget, but 2 gadgets are visible in state 'New state'."):
+                "'left' panel expected at most 1 gadget, but 2 gadgets are "
+                "visible in state 'New state'."):
             exploration.validate()
 
         # Assert that an error is raised when a gadget is not visible in any
