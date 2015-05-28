@@ -190,7 +190,7 @@
              ng-model="$parent.$parent.localValue" ng-blur="onInputBlur()"
              ng-focus="onInputFocus()" focus-on="<[labelForFocusTarget()]>"
              ng-keypress="onKeypress($event)" placeholder="<[getPlaceholder()]>"
-             style="padding-top: 20px; margin-top: -30px;">
+             style="padding-top: 20px; margin-top: -20px;">
     </md-input-group>
 
     <!-- Note that we do not yet support ng-blur for the code editor. -->
@@ -388,7 +388,7 @@
 
   <div class="modal-body">
     <form name="form.schemaForm">
-      <div ng-repeat="customizationArgSpec in customizationArgSpecs track by $index">
+      <div ng-repeat="customizationArgSpec in customizationArgSpecs track by $index" style="margin-top:20px;">
         <strong><[customizationArgSpec.description]></strong>
         <div>
           <schema-based-editor local-value="tmpCustomizationArgs[$index].value" schema="customizationArgSpec.schema">
