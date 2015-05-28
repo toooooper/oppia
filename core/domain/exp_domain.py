@@ -82,7 +82,7 @@ class ExplorationChange(object):
 
     GADGET_PROPERTIES = (
         GADGET_PROPERTY_VISIBILITY,
-        GADGET_PROPERTY_VISIBILITY)
+        GADGET_PROPERTY_CUST_ARGS)
 
     EXPLORATION_PROPERTIES = (
         'title', 'category', 'objective', 'language_code', 'tags',

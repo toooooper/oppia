@@ -210,6 +210,35 @@ oppia.factory('changeListService', [
     'gadget_customization_args': true
   }
 
+  // Private Methods
+
+  /**
+   * Converts a list of Customization Args to a dict formatted for
+   * backend processing.
+   *
+   * @param {list} customizationArgsList A list of customizationArgs data.
+   */
+
+   // @sll: Without doing this conversion up front saving fails at the
+   // internal validation within GadgetInstances. (e.g. AdviceBar.py line 131
+   // trying to access customization_args['orientation']['value'] and getting
+   // list indices must be integers not strings.)  I don't see where
+   // Interactions are doing this conversion (if anywhere). Thought about
+   // implementing it as a conversion in the backend itself in exp_domain or
+   // exp_services, but it looked like it would be more odd to perform there
+   // when everything is already expecting a dict.
+  var _convertCustomizationArgsListToDict = function(customizationArgsList) {
+    var customizationArgs = {};
+    for (var i = 0; i < customizationArgsList.length; i++) {
+      var argName = customizationArgsList[i].name;
+      var argValue = customizationArgsList[i].value;
+      customizationArgs[argName] = {
+        'value': argValue
+      };
+    }
+    return customizationArgs;
+  }
+
   return {
     _addChange: function(changeDict) {
       if ($rootScope.loadingMessage) {
@@ -343,27 +372,13 @@ oppia.factory('changeListService', [
     addGadget: function(gadgetData, panelName) {
       console.log(gadgetData);
 
-      // @sll: Is there a preferred way to handle this? I couldn't isolate
-      // how it's done differently for interaction customization_args.
-      // It appears exp_domain.State.update_interaction_customization_args()
-      // is pretty much the same.
-      //
-      // Format customization args for backend.
-      var customization_args = {};
-      for (var i = 0; i < gadgetData.customizationArgs.length; i++) {
-        var argName = gadgetData.customizationArgs[i].name;
-        var argValue = gadgetData.customizationArgs[i].value;
-        customization_args[argName] = {
-          'value': argValue
-        };
-      }
-
       // Convert to backend property names.
       var backendDict = {};
       backendDict.gadget_id = gadgetData.gadgetId;
       backendDict.visible_in_states = gadgetData.visibleInStates;
       backendDict.gadget_name = gadgetData.name;
-      backendDict.customization_args = customization_args;
+      backendDict.customization_args = (
+        _convertCustomizationArgsListToDict(gadgetData.customizationArgs));
 
       this._addChange({
         cmd: CMD_ADD_GADGET,
