@@ -1908,13 +1908,25 @@ div#ng-curtain {
 }
 
 /* Styles for gadget panels and editor. */
+.oppia-gadget-tile {
+  cursor: pointer;
+  display: inline-block;
+  margin: 5px;
+  border: 1px solid #aaa;
+  vertical-align: top;
+  width: 30%;
+  border-radius: 5px;
+}
+.oppia-gadget-tile:hover {
+  border: 2px solid #05A69A;
+}
 .conversation-skin-left-gadget-panel {
   background: white;
   border: 1px solid lightgrey;
-  height: 400px;
+  max-height: 400px;
   left: 0;
   margin-left: 50px;
   position: fixed;
   top: 100px;
-  width: 200px;
+  max-width: 200px;
 }

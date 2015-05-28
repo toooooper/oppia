@@ -1028,6 +1028,16 @@ oppia.factory('explorationGadgetsService', [
 
       $log.info('Initializing ' + Object.keys(_gadgets).length + ' gadget(s).');
       $log.info('Initializing ' + Object.keys(_panels).length + ' panel(s).');
+      $rootScope.$broadcast('gadgetsInitialized');
+    },
+    getUniqueGadgetName: function(gadgetId) {
+      return _generateUniqueGadgetName(gadgetId);
+    },
+    getGadgets: function() {
+      return angular.copy(_gadgets);
+    },
+    getPanels: function() {
+      return angular.copy(_panels);
     },
     getGadget: function(gadgetName) {
       return angular.copy(_gadgets[gadgetName]);
@@ -1043,12 +1053,15 @@ oppia.factory('explorationGadgetsService', [
       _gadgets[gadgetName] = angular.copy(gadgetData);
     },
     addGadget: function(gadgetData, panelName) {
-      // TODO(anuzis/vjoisar): refactor to update _panels as well.
       if(!_panels[panelName]) {
         $log.info('Attempted to add to non-existent panel: ' + panelName);
         return;
       }
-      gadgetData.name = _generateUniqueGadgetName(gadgetData.gadgetId);
+      //TODO(anuzis/vjoisar): Normalize gadget name to remove whitespace.
+      if(_gadgets.hasOwnProperty(gadgetData.name)){
+        $log.info('Gadget with this name already exists.');
+        return;
+      }
       _gadgets[gadgetData.name] = gadgetData;
       _panels[panelName].push(gadgetData.name);
       changeListService.addGadget(gadgetData, panelName);

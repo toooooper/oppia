@@ -7,13 +7,9 @@
       Insert Gadget
     </button>
   </md-card>
-  <div ng-if="false"> TODO(anuzis/vjoisar):(resolve gadget id in modal controller)</div>
-  <div ng-if="!!gadgetId"
-      class="gadget-panel conversation-skin-left-gadget-panel ng-isolate-scope">
-      <div style="display:inline-block">
-        <[gadgetId]>
-        <img src="/third_party/static/material-design-icons-1.0.1/ic_close_black_48dp.png" class="protractor-test-delete-gadget oppia-delete-interaction-button oppia-transition-200" ng-click="deleteGadget(gadgetName)"></span>
-      </div>
+  <div ng-if="false">
+    <div angular-html-bind="gadgetPreviewHtml" style="pointer-events: none;"
+         class="gadget-panel conversation-skin-left-gadget-panel ng-isolate-scope">
   </div>
 </div>
 
@@ -28,30 +24,49 @@
   </div>
   <div class="modal-body">
     <div ng-if="!selectedGadgetId" ng-cloak>
-      <ul class="gadget-list">
-        <li class="gadget-list-item" 
+      <span class="oppia-gadget-tile" 
             ng-repeat="(key, gadget) in ALLOWED_GADGETS"
             ng-click="onChangeGadgetId(key)">
-            <[key]>
-        </li>
-      </ul>
+        <[key]>
+      </span>
     </div>
-
-    <form ng-if="selectedGadgetId" name="form.schemaForm" class="protractor-test-gadget-editor">
-      <div ng-if="customizationArgSpecs.length === 0">
-        <em>There are no customization options available.<br><br>
-        To use this gadget, click 'Save Gadget'.</em>
-      </div>
-
-      <div ng-repeat="customizationArgSpec in customizationArgSpecs track by $index">
-        <div class="oppia-gadget-customization-label"><[customizationArgSpec.description]></div>
-        <div>
-          <schema-based-editor local-value="tmpCustomizationArgs[$index].value" schema="customizationArgSpec.schema">
-          </schema-based-editor>
-          <div style="margin-bottom: 15px;"></div>
+    <div ng-if="selectedGadgetId" class="form-container" >
+      <form name="form.schemaForm" class="protractor-test-gadget-editor">
+        <div ng-if="customizationArgSpecs.length === 0">
+          <em>There are no customization options available.<br><br>
+          To use this gadget, click 'Save Gadget'.</em>
         </div>
+
+        <div ng-repeat="customizationArgSpec in customizationArgSpecs track by $index">
+          <div class="oppia-gadget-customization-label"><[customizationArgSpec.description]></div>
+          <div>
+            <schema-based-editor local-value="tmpCustomizationArgs[$index].value" schema="customizationArgSpec.schema">
+            </schema-based-editor>
+            <div style="margin-bottom: 15px;"></div>
+          </div>
+        </div>
+      </form>
+      <div class="gadget-name-panel">
+        <label>Gadget Name</label>
+        <input ng-model="gadgetName" />
       </div>
-    </form>
+      <div class="gadget-layout-panel">
+        <label>Layout</label>
+        <select ng-model="gadgetLayout" >
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+          <option value="bottom">Bottom</option>
+        </select>
+      </div>
+      <div class="gadget-state-panel"> 
+        <h2>Visible in states</h2>
+        <label ng-repeat="state in explorationStates">
+          <input type="checkbox" ng-click="manageVisibilityInStates(state)"
+                 ng-checked="visibleInStates.indexOf(state) > -1"
+                 checklist-value="state"> <[state]>
+        </label>
+      </div>
+    </div>    
   </div> 
 
 

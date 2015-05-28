@@ -20,11 +20,26 @@
 
 // TODO(vjoisar): desc for the gadget ui editor
 oppia.controller('GadgetEditor', [
-  '$scope', '$http', '$rootScope', '$modal', '$filter',
+  '$scope', '$http', '$rootScope', '$modal', '$filter', 'extensionTagAssemblerService',
   'explorationGadgetsService', 'editorContextService', 'GADGET_SPECS',
-  function($scope, $http, $rootScope, $modal, $filter,
+  function($scope, $http, $rootScope, $modal, $filter, extensionTagAssemblerService,
     explorationGadgetsService, editorContextService, GADGET_SPECS) {
-    $scope.gadgetId = '';
+    var _gadgetPreviewHtml = function(gadgetData){
+        console.log(gadgetData);
+      var el = $(
+        '<oppia-gadget-' + $filter('camelCaseToHyphens')(gadgetData.gadget_id) + '>');
+      el = extensionTagAssemblerService.formatCustomizationArgAttributesForElement(
+        el, gadgetData.customization_args);
+      return el.get(0).outerHTML;
+    };
+    $scope.$on('gadgetsInitialized', function(evt) {
+      $scope.gadgets = explorationGadgetsService.getGadgets();
+      $scope.panels = explorationGadgetsService.getPanels();
+      $scope.gadgetPreviewHtml = '';
+      for (var gadgetName in $scope.gadgets){
+        $scope.gadgetPreviewHtml += _gadgetPreviewHtml($scope.gadgets[gadgetName]);
+      }
+    });
 
     $scope.openAddGadgetModal = function() {
       $modal.open({
@@ -32,12 +47,21 @@ oppia.controller('GadgetEditor', [
         backdrop: 'static',
         resolve: {},
         controller: [
-          '$scope', '$modalInstance', 'GADGET_SPECS',
-          function($scope, $modalInstance, GADGET_SPECS) {
+          '$scope', '$modalInstance', 'explorationGadgetsService', 'editorContextService',
+          'explorationStatesService', 'GADGET_SPECS',
+          function($scope, $modalInstance, explorationGadgetsService, editorContextService,
+            explorationStatesService, GADGET_SPECS) {
             $scope.ALLOWED_GADGETS = GLOBALS.ALLOWED_GADGETS;
+            //TODO(vjoisar/anuzis): Fix the 2 way data binding for name and layout.
             $scope.GADGET_SPECS = GADGET_SPECS;
+            $scope.gadgetLayout = 'left'; //left is default;
+            $scope.gadgetName = '';
+            $scope.visibleInStates = []
+            $scope.explorationStates = Object.keys(explorationStatesService.getStates());
             $scope.onChangeGadgetId = function(newGadgetId) {
               $scope.selectedGadgetId = newGadgetId;
+              $scope.gadgetName = explorationGadgetsService.getUniqueGadgetName(newGadgetId);
+              $scope.visibleInStates.push(editorContextService.getActiveStateName());
               var gadgetSpec = GADGET_SPECS[newGadgetId];
               $scope.customizationArgSpecs = (
                 gadgetSpec.customization_arg_specs
@@ -54,6 +78,18 @@ oppia.controller('GadgetEditor', [
               $scope.$broadcast('schemaBasedFormsShown');
               $scope.form = {};
             };
+
+            $scope.manageVisibilityInStates = function (stateName) {
+              var index = $scope.visibleInStates.indexOf(stateName);
+              // is currently selected
+              if (index > -1) {
+                $scope.visibleInStates.splice(index, 1);
+              }
+              // is newly selected
+              else {
+                $scope.visibleInStates.push(stateName);
+              }
+            };
             $scope.returnToGadgetSelector = function() {
               $scope.selectedGadgetId = null;
               $scope.tmpCustomizationArgs = [];
@@ -64,21 +100,17 @@ oppia.controller('GadgetEditor', [
             $scope.addGadget = function() {
               $modalInstance.close({
                 gadgetId: $scope.selectedGadgetId,
-                customizationArgs: $scope.tmpCustomizationArgs
+                name: $scope.gadgetName,
+                gadgetLayout: $scope.gadgetLayout,
+                customizationArgs: $scope.tmpCustomizationArgs,
+                visibleInStates: $scope.visibleInStates,
               });
             };
         }]
       }).result.then(function(result){
-        $scope.gadgetId = result.selectedGadgetId;
-        $scope.$parent.gadgetId = result.selectedGadgetId;
-        //TODO(anuzis/vjoisar): Add logic for multiple state visibility.
-        // visibleInStates is an array of strings.
-        var visibleInStates = [];
-        visibleInStates.push(editorContextService.getActiveStateName());
-        result['visibleInStates'] = visibleInStates;
-        //TODO(anuzis/vjoisar): Add logic to select position from the form.
-        var panelName = 'left';
-        explorationGadgetsService.addGadget(result, panelName);
+        console.log('result:');
+        console.log(result);
+        explorationGadgetsService.addGadget(result, result.gadgetLayout);
       }, function() {
         console.log('Gadget modal closed');
       });
