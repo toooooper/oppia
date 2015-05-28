@@ -1584,7 +1584,7 @@ class Exploration(object):
     def delete_gadget(self, gadget_name):
         """Deletes the given gadget."""
         if gadget_name not in self._gadget_names:
-            raise ValueError('Gadget %s does not exist' % gadget_name)
+            raise ValueError('Gadget %s does not exist.' % gadget_name)
 
         panel_name = self._get_panel_name_for_gadget(gadget_name)
         gadget_index = None
@@ -1622,7 +1622,7 @@ class Exploration(object):
             for gadget_instance in self.skin_instance.panel_contents_dict[
             panel_name]:
                 gadget_names.add(gadget_instance.name)
-        return gadget_names
+        return sorted(gadget_names)
 
     # The current version of the exploration schema. If any backward-
     # incompatible changes are made to the exploration schema in the YAML

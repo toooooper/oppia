@@ -186,6 +186,18 @@ TEST_GADGETS = {
     }
 }
 
+TEST_GADGET_CUSTOMIZATION_ARGS = {
+    'characters': {'value': 2},
+    'floors': {'value': 1},
+    'title': {'value': 'The Test Gadget!'}
+}
+
+TEST_GADGET_DICT = {
+    'gadget_id': 'TestGadget',
+    'gadget_name': 'ATestGadget',
+    'customization_args': TEST_GADGET_CUSTOMIZATION_ARGS,
+    'visible_in_states': ['First state']
+}
 
 class ExplorationDomainUnitTests(test_utils.GenericTestBase):
     """Test the exploration domain object."""
@@ -1046,6 +1058,59 @@ class StateOperationsUnitTests(test_utils.GenericTestBase):
         self.assertIn('Renamed state', exploration.states)
         self.assertIn('State 2', exploration.states)
 
+class GadgetOperationsUnitTests(test_utils.GenericTestBase):
+    """Test methods operating on gadgets."""
+
+    def test_gadget_operations(self):
+        """Test deletion of gadgets."""
+        exploration = exp_domain.Exploration.create_default_exploration(
+            'eid', 'A title', 'A category')
+
+        with self.swap(feconf, 'ALLOWED_GADGETS', TEST_GADGETS):
+            exploration.add_gadget(TEST_GADGET_DICT, 'left')
+
+        self.assertEqual(exploration.skin_instance.panel_contents_dict[
+            'left'][0].id, TEST_GADGET_DICT['gadget_id'])
+        self.assertEqual(exploration.skin_instance.panel_contents_dict[
+            'left'][0].name, TEST_GADGET_DICT['gadget_name'])
+
+        with self.assertRaisesRegexp(
+                ValueError, 'Gadget NotARealGadget does not exist.'):
+            exploration.rename_gadget('NotARealGadget', 'ANewName')
+
+        exploration.rename_gadget(TEST_GADGET_DICT['gadget_name'], 'ANewName')
+        self.assertEqual(exploration.skin_instance.panel_contents_dict[
+            'left'][0].name, 'ANewName')
+
+        # Add another gadget on the right.
+        with self.swap(feconf, 'ALLOWED_GADGETS', TEST_GADGETS):
+            exploration.add_gadget(TEST_GADGET_DICT, 'right')
+
+        self.assertEqual(
+            exploration._gadget_names,
+            ['ANewName', 'ATestGadget']
+        )
+
+        with self.assertRaisesRegexp(
+                ValueError, 'Duplicate gadget name: ANewName'):
+            exploration.rename_gadget('ATestGadget', 'ANewName')
+
+        gadget_instance = exploration.get_gadget_instance_by_name('ANewName')
+        self.assertIs(
+            exploration.skin_instance.panel_contents_dict['left'][0],
+            gadget_instance
+        )
+
+        panel_name = exploration._get_panel_name_for_gadget('ANewName')
+        self.assertEqual(panel_name, 'left')
+
+        exploration.delete_gadget('ANewName')
+        self.assertEqual(exploration.skin_instance.panel_contents_dict[
+            'left'], [])
+        with self.assertRaisesRegexp(
+                ValueError, 'Gadget ANewName does not exist.'):
+            exploration.delete_gadget('ANewName')
+
 
 class SkinInstanceUnitTests(test_utils.GenericTestBase):
     """Test methods for SkinInstance."""
@@ -1057,10 +1122,7 @@ class SkinInstanceUnitTests(test_utils.GenericTestBase):
                 'bottom': [],
                 'left': [
                     {
-                        'customization_args': {
-                            'characters': {'value': 2},
-                            'floors': {'value': 1},
-                            'title': {'value': 'The Test Gadget!'}},
+                        'customization_args': TEST_GADGET_CUSTOMIZATION_ARGS,
                         'gadget_id': 'TestGadget',
                         'gadget_name': 'ATestGadget',
                         'visible_in_states': ['New state', 'Second state']
@@ -1203,17 +1265,7 @@ class GadgetInstanceUnitTests(test_utils.GenericTestBase):
                 'gadget_id': 'TestGadget',
                 'gadget_name': 'ATestGadget',
                 'visible_in_states': ['New state', 'Second state'],
-                'customization_args': {
-                    'title': {
-                        'value': 'The Test Gadget!'
-                    },
-                    'characters': {
-                        'value': 2
-                    },
-                    'floors': {
-                        'value': 1
-                    }
-                }
+                'customization_args': TEST_GADGET_CUSTOMIZATION_ARGS
             }
         )
 

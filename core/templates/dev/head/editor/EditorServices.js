@@ -1016,10 +1016,6 @@ oppia.factory('explorationGadgetsService', [
     return panelsData;
   };
   
-  // @sll: Should we consolidate all validation to the validatorsService?
-  // It seems like it might be easier to implement gadget-specific
-  // validation in this service, perhaps with a public API for other
-  // services to call.
   var _validate = function() {
     // Validates configuration and fit of all gadgets and panels.
     for (var panelName in _panels) {
@@ -1030,7 +1026,7 @@ oppia.factory('explorationGadgetsService', [
   var _validatePanel = function(panelName) {
     // Validates fit and internal validity of all gadgets in a panel.
     // Returns boolean.
-    // TODO(anuzis): Implement.
+    // TODO(anuzis/vjoisar): Implement.
     return true;
   };
 
@@ -1043,27 +1039,72 @@ oppia.factory('explorationGadgetsService', [
 
       $log.info('Initializing ' + Object.keys(_gadgets).length + ' gadget(s).');
       $log.info('Initializing ' + Object.keys(_panels).length + ' panel(s).');
+      $rootScope.$broadcast('gadgetsInitialized');
+    },
+    getUniqueGadgetName: function(gadgetId) {
+      return _generateUniqueGadgetName(gadgetId);
+    },
+    getGadgets: function() {
+      return angular.copy(_gadgets);
+    },
+    getPanels: function() {
+      return angular.copy(_panels);
     },
     getGadget: function(gadgetName) {
       return angular.copy(_gadgets[gadgetName]);
     },
-    setGadget: function(gadgetName, gadgetData) {
-      // @sll: What are we thinking is the use for this method?
-      // I'm thinking of replacing it with an updateGadget method that
-      // initiates a changeListService.updateGadget() change for any
-      // customization args or visibility settings that have changed.
-      // However, looking at the setState counterpart I notice it doesn't
-      // initiate any changeListService changes either. Is there a likely
-      // use for this with gadgets?
-      _gadgets[gadgetName] = angular.copy(gadgetData);
+    /**
+     * Updates a gadget's visibility and/or customization args using
+     * the new data provided.
+     * 
+     * This method does not update a gadget's name or panel position.
+     * Use this method in conjunction with renameGadget and
+     * moveGadgetBetweenPanels if those aspects need to be changed as well.
+     *
+     * @param {object} newGadgetData Updated data for the gadget.
+     */
+    updateGadget: function(newGadgetData) {
+      var gadgetName = newGadgetData.name;
+
+      if (!_gadgets.hasOwnProperty[gadgetName]) {
+        $log.info('Attempted to update a non-existent gadget: ' + gadgetName);
+        $log.info('Call renameGadget separately for gadgetName changes.');
+      }
+      var currentGadgetData = _gadgets[gadgetName];
+
+      // TODO(anuzis/vjoisar): Karma tests. Needs to detect deep inequality.
+      if (currentGadgetData.customizationArgs !=
+          newGadgetData.customizationArgs) {
+        $log.info('Updating customization args for gadget: ' + gadgetName);
+        changeListService.editGadgetProperty(
+          gadgetName,
+          'customization_args',
+          newGadgetData.customizationArgs,
+          currentGadgetData.customizationArgs
+        );
+      }
+      if (currentGadgetData.visibleInStates !=
+          newGadgetData.visibleInStates) {
+        $log.info('Updating visibility for gadget: ' + gadgetName);
+        changeListService.editGadgetProperty(
+          gadgetName,
+          'visible_in_states',
+          newGadgetData.visibleInStates,
+          currentGadgetData.visibleInStates
+        );
+      }
+      _gadgets[gadgetName] = angular.copy(newGadgetData);
     },
     addGadget: function(gadgetData, panelName) {
-      // TODO(anuzis/vjoisar): refactor to update _panels as well.
       if(!_panels[panelName]) {
         $log.info('Attempted to add to non-existent panel: ' + panelName);
         return;
       }
-      gadgetData.name = _generateUniqueGadgetName(gadgetData.gadgetId);
+      //TODO(anuzis/vjoisar): Normalize gadget name to remove whitespace.
+      if(_gadgets.hasOwnProperty(gadgetData.name)){
+        $log.info('Gadget with this name already exists.');
+        return;
+      }
       _gadgets[gadgetData.name] = gadgetData;
       _panels[panelName].push(gadgetData.name);
       changeListService.addGadget(gadgetData, panelName);
