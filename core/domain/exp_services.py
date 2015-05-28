@@ -514,7 +514,11 @@ class EntityChangeListSummarizer(object):
         original_names = {name: name for name in original_entity_names}
 
         for change in changes:
-            entity_name = getattr(change, self.entity_name)
+            try:
+                entity_name = getattr(change, self.entity_name)
+            except AttributeError:
+                # ExplorationChange is for a different type of entity.
+                continue
             if change.cmd == self.add_entity:
                 if entity_name in self.changed:
                     continue
