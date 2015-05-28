@@ -496,16 +496,25 @@ class EntityChangeListSummarizer(object):
         return 'edit_' + self.base_name + '_property'
 
     @property
-    def _entity_name(self):
-        """Formatting method for easier reading."""
+    def entity_name(self):
         return self.base_name + '_name'
+
+    @property
+    def new_entity_name(self):
+        return 'new_' + self.base_name + '_name'
+
+    @property
+    def old_entity_name(self):
+        return 'old_' + self.base_name + '_name'
+
+
 
     def _process_changes(self, original_entity_names, changes):
         """Process changes."""
         original_names = {name: name for name in original_entity_names}
 
         for change in changes:
-            entity_name = getattr(change, self._entity_name)
+            entity_name = getattr(change, self.entity_name)
             if change.cmd == self.add_entity:
                 if entity_name in self.changed:
                     continue
@@ -515,12 +524,12 @@ class EntityChangeListSummarizer(object):
                     self.deleted.remove(entity_name)
                 else:
                     self.added.append(entity_name)
-                    original_names[
-                        entity_name
-                    ] = entity_name
+                    original_names[entity_name] = entity_name
             elif change.cmd == self.rename_entity:
-                orig_name = original_names[change.old_state_name]
-                original_names[change.new_state_name] = orig_name
+                new_entity_name = getattr(change, self.new_entity_name)
+                old_entity_name = getattr(change, self.old_entity_name)
+                orig_name = original_names[old_entity_name]
+                original_names[new_entity_name] = orig_name
 
                 if orig_name in self.changed:
                     continue
@@ -529,10 +538,10 @@ class EntityChangeListSummarizer(object):
                     self.property_changes[orig_name] = {}
                 if 'name' not in self.property_changes[orig_name]:
                     self.property_changes[orig_name]['name'] = {
-                        'old_value': change.old_state_name
+                        'old_value': old_entity_name
                     }
                 self.property_changes[orig_name]['name']['new_value'] = (
-                    change.new_state_name)
+                    new_entity_name)
             elif change.cmd == self.delete_entity:
                 orig_name = original_names[entity_name]
                 if orig_name in self.changed:
