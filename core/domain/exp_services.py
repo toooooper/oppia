@@ -442,6 +442,137 @@ def apply_change_list(exploration_id, change_list):
         raise
 
 
+class EntityChangeListSummarizer(object):
+    """Summarizes additions, deletions, and general changes against a given
+    entity type.
+    """
+
+    def __init__(self, base_entity_name, original_entity_names, changes):
+        """
+        Args:
+        - base_entity_name: string. Name of the base entity (e.g. 'state')
+        - original_entity_names: a list of strings representing original names
+        - changes: list of ExplorationChange instances.
+        """
+        self.base_name = base_entity_name
+
+        # a list of added entity names.
+        self.added = []
+
+        # a list of deleted entity names.
+        self.deleted = []
+
+        # changed: a list of entity names. This indicates that the
+        # entity has changed but we do not know what the changes are. This
+        # can happen for complicated operations like removing an entity
+        # and later adding a new entity with the same name as the removed
+        # one.
+        self.changed = []
+
+        # property_changes: a dict, where each key is an entity's name, and
+        # the corresponding values are dicts; the keys of these dicts
+        # represent properties of the entity, and the corresponding values
+        # are dicts with keys old_value and new_value. If an entity name
+        # is changed, this is listed as a property name change under the
+        # old entity name in the outer dict.
+        self.property_changes = {}
+
+        self._process_changes(original_entity_names, changes)
+
+    @property
+    def add_entity(self):
+        return 'add_' + self.base_name
+
+    @property
+    def rename_entity(self):
+        return 'rename_' + self.base_name
+
+    @property
+    def delete_entity(self):
+        return 'delete_' + self.base_name
+
+    @property
+    def edit_entity_property(self):
+        return 'edit_' + self.base_name + '_property'
+
+    @property
+    def _entity_name(self):
+        """Formatting method for easier reading."""
+        return self.base_name + '_name'
+
+    def _process_changes(self, original_entity_names, changes):
+        """Process changes."""
+        original_names = {name: name for name in original_entity_names}
+
+        for change in changes:
+            entity_name = getattr(change, self._entity_name)
+            if change.cmd == self.add_entity:
+                if entity_name in self.changed:
+                    continue
+                elif entity_name in self.deleted:
+                    self.changed.append(entity_name)
+                    del self.property_changes[entity_name]
+                    self.deleted.remove(entity_name)
+                else:
+                    self.added.append(entity_name)
+                    original_names[
+                        entity_name
+                    ] = entity_name
+            elif change.cmd == self.rename_entity:
+                orig_name = original_names[change.old_state_name]
+                original_names[change.new_state_name] = orig_name
+
+                if orig_name in self.changed:
+                    continue
+
+                if orig_name not in self.property_changes:
+                    self.property_changes[orig_name] = {}
+                if 'name' not in self.property_changes[orig_name]:
+                    self.property_changes[orig_name]['name'] = {
+                        'old_value': change.old_state_name
+                    }
+                self.property_changes[orig_name]['name']['new_value'] = (
+                    change.new_state_name)
+            elif change.cmd == self.delete_entity:
+                orig_name = original_names[entity_name]
+                if orig_name in self.changed:
+                    continue
+                elif orig_name in self.added:
+                    self.added.remove(orig_name)
+                else:
+                    self.deleted.append(orig_name)
+            elif change.cmd == self.edit_entity_property:
+                orig_name = original_names[entity_name]
+                if orig_name in self.changed:
+                    continue
+
+                property_name = change.property_name
+
+                if orig_name not in self.property_changes:
+                    self.property_changes[orig_name] = {}
+                if property_name not in self.property_changes[orig_name]:
+                    self.property_changes[orig_name][property_name] = {
+                        'old_value': change.old_value
+                    }
+                self.property_changes[orig_name][property_name][
+                    'new_value'] = change.new_value
+
+        unchanged_names = []
+        for name in self.property_changes:
+            unchanged_properties = []
+            changes = self.property_changes[name]
+            for property_name in changes:
+                if (changes[property_name]['old_value'] ==
+                        changes[property_name]['new_value']):
+                    unchanged_properties.append(property_name)
+            for property_name in unchanged_properties:
+                del changes[property_name]
+            if len(changes) == 0:
+                unchanged_names.append(name)
+        for name in unchanged_names:
+            del self.property_changes[name]
+
+
 def get_summary_of_change_list(base_exploration, change_list):
     """Applies a changelist to a pristine exploration and returns a summary.
 
@@ -449,27 +580,15 @@ def get_summary_of_change_list(base_exploration, change_list):
     object.
 
     Returns:
-      a dict with five keys:
-        exploration_property_changes: a dict, where each key is a property_name
-          of the exploration, and the corresponding values are dicts with keys
-          old_value and new_value.
-        state_property_changes: a dict, where each key is a state name, and the
-          corresponding values are dicts; the keys of these dicts represent
-          properties of the state, and the corresponding values are dicts with
-          keys old_value and new_value. If a state name is changed, this is
-          listed as a property name change under the old state name in the
-          outer dict.
-        changed_states: a list of state names. This indicates that the state
-          has changed but we do not know what the changes are. This can happen
-          for complicated operations like removing a state and later adding a
-          new state with the same name as the removed state.
-        added_states: a list of added state names.
-        deleted_states: a list of deleted state names.
+      a dict with nine keys:
+        - exploration_property_changes: a dict, where each key is a
+          property_name of the exploration, and the corresponding values are
+          dicts with keys old_value and new_value.
+        - 4 'state' and 'gadget' change lists per data structures defined
+          in EntityChangeListSummarizer
     """
     # TODO(sll): This really needs tests, especially the diff logic. Probably
     # worth comparing with the actual changed exploration.
-
-    # TODO(anuzis): Cover gadget changes in this change summary method.
 
     # Ensure that the original exploration does not get altered.
     exploration = copy.deepcopy(base_exploration)
@@ -478,66 +597,18 @@ def get_summary_of_change_list(base_exploration, change_list):
         exp_domain.ExplorationChange(change_dict)
         for change_dict in change_list]
 
+    # State changes
+    state_change_summarizer = EntityChangeListSummarizer(
+        'state', exploration.states.keys(), changes)
+
+    # Gadget changes
+    gadget_change_summarizer = EntityChangeListSummarizer(
+        'gadget', exploration._gadget_names, changes)
+
+    # Exploration changes
     exploration_property_changes = {}
-    state_property_changes = {}
-    changed_states = []
-    added_states = []
-    deleted_states = []
-
-    original_state_names = {
-        state_name: state_name for state_name in exploration.states.keys()
-    }
-
     for change in changes:
-        if change.cmd == 'add_state':
-            if change.state_name in changed_states:
-                continue
-            elif change.state_name in deleted_states:
-                changed_states.append(change.state_name)
-                del state_property_changes[change.state_name]
-                deleted_states.remove(change.state_name)
-            else:
-                added_states.append(change.state_name)
-                original_state_names[change.state_name] = change.state_name
-        elif change.cmd == 'rename_state':
-            orig_state_name = original_state_names[change.old_state_name]
-            original_state_names[change.new_state_name] = orig_state_name
-
-            if orig_state_name in changed_states:
-                continue
-
-            if orig_state_name not in state_property_changes:
-                state_property_changes[orig_state_name] = {}
-            if 'name' not in state_property_changes[orig_state_name]:
-                state_property_changes[orig_state_name]['name'] = {
-                    'old_value': change.old_state_name
-                }
-            state_property_changes[orig_state_name]['name']['new_value'] = (
-                change.new_state_name)
-        elif change.cmd == 'delete_state':
-            orig_state_name = original_state_names[change.state_name]
-            if orig_state_name in changed_states:
-                continue
-            elif orig_state_name in added_states:
-                added_states.remove(orig_state_name)
-            else:
-                deleted_states.append(orig_state_name)
-        elif change.cmd == 'edit_state_property':
-            orig_state_name = original_state_names[change.state_name]
-            if orig_state_name in changed_states:
-                continue
-
-            property_name = change.property_name
-
-            if orig_state_name not in state_property_changes:
-                state_property_changes[orig_state_name] = {}
-            if property_name not in state_property_changes[orig_state_name]:
-                state_property_changes[orig_state_name][property_name] = {
-                    'old_value': change.old_value
-                }
-            state_property_changes[orig_state_name][property_name][
-                'new_value'] = change.new_value
-        elif change.cmd == 'edit_exploration_property':
+        if change.cmd == 'edit_exploration_property':
             property_name = change.property_name
 
             if property_name not in exploration_property_changes:
@@ -555,28 +626,16 @@ def get_summary_of_change_list(base_exploration, change_list):
     for property_name in unchanged_exploration_properties:
         del exploration_property_changes[property_name]
 
-    unchanged_state_names = []
-    for state_name in state_property_changes:
-        unchanged_state_properties = []
-        changes = state_property_changes[state_name]
-        for property_name in changes:
-            if (changes[property_name]['old_value'] ==
-                    changes[property_name]['new_value']):
-                unchanged_state_properties.append(property_name)
-        for property_name in unchanged_state_properties:
-            del changes[property_name]
-
-        if len(changes) == 0:
-            unchanged_state_names.append(state_name)
-    for state_name in unchanged_state_names:
-        del state_property_changes[state_name]
-
     return {
         'exploration_property_changes': exploration_property_changes,
-        'state_property_changes': state_property_changes,
-        'changed_states': changed_states,
-        'added_states': added_states,
-        'deleted_states': deleted_states,
+        'state_property_changes': state_change_summarizer.property_changes,
+        'changed_states': state_change_summarizer.changed,
+        'added_states': state_change_summarizer.added,
+        'deleted_states': state_change_summarizer.deleted,
+        'gadget_property_changes': gadget_change_summarizer.property_changes,
+        'changed_gadgets': gadget_change_summarizer.changed,
+        'added_gadgets': gadget_change_summarizer.added,
+        'deleted_gadgets': gadget_change_summarizer.deleted
     }
 
 
