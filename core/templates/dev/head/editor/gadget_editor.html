@@ -30,42 +30,43 @@
         <[key]>
       </span>
     </div>
-    <div ng-if="selectedGadgetId" class="form-container" >
-      <form name="form.schemaForm" class="protractor-test-gadget-editor">
-        <div ng-if="customizationArgSpecs.length === 0">
-          <em>There are no customization options available.<br><br>
-          To use this gadget, click 'Save Gadget'.</em>
-        </div>
-
-        <div ng-repeat="customizationArgSpec in customizationArgSpecs track by $index">
-          <div class="oppia-gadget-customization-label"><[customizationArgSpec.description]></div>
-          <div>
-            <schema-based-editor local-value="tmpCustomizationArgs[$index].value" schema="customizationArgSpec.schema">
-            </schema-based-editor>
-            <div style="margin-bottom: 15px;"></div>
-          </div>
-        </div>
-      </form>
+    <div ng-if="selectedGadgetId" class="customization-editor">
       <div class="gadget-name-panel">
         <label>Gadget Name</label>
-        <input ng-model="gadgetName" />
+        <input ng-model="gadgetNameService.displayed" />
       </div>
       <div class="gadget-layout-panel">
-        <label>Layout</label>
-        <select ng-model="gadgetLayout" >
+        <label class="oppia-gadget-customization-label">Layout</label>
+        <select ng-model="gadgetLayoutService.displayed" >
           <option value="left">Left</option>
           <option value="right">Right</option>
           <option value="bottom">Bottom</option>
         </select>
       </div>
       <div class="gadget-state-panel"> 
-        <h2>Visible in states</h2>
-        <label ng-repeat="state in explorationStates">
+        <h2 class="oppia-gadget-customization-label">Visible in states</h2>
+        <label class="oppia-gadget-customization-label" 
+               ng-repeat="state in explorationStates" >
           <input type="checkbox" ng-click="manageVisibilityInStates(state)"
-                 ng-checked="visibleInStates.indexOf(state) > -1"
+                 ng-checked="gadgetStateVisibilityService.displayed.indexOf(state) > -1"
                  checklist-value="state"> <[state]>
         </label>
       </div>
+      <form name="form.schemaForm" class="protractor-test-gadget-editor">
+        <div ng-if="customizationArgSpecs.length === 0">
+          <em>There are no customization options available.<br><br>
+          To use this gadget, click 'Save Gadget'.</em>
+        </div>
+
+        <div ng-repeat="customizationArgSpec in customizationArgSpecs">
+          <div class="oppia-gadget-customization-label"><[customizationArgSpec.description]></div>
+          <div>
+            <schema-based-editor local-value="gadgetCustomizationArgsService.displayed[customizationArgSpec.name].value" schema="customizationArgSpec.schema">
+            </schema-based-editor>
+            <div style="margin-bottom: 15px;"></div>
+          </div>
+        </div>
+      </form>
     </div>    
   </div> 
 
