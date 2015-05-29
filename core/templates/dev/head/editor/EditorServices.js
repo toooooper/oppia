@@ -1189,23 +1189,23 @@ oppia.factory('gadgetPropertyService', [
     '$log', 'changeListService', 'warningsData', 
     function($log, changeListService, warningsData) {
   return {
-    init: function(gadgateName, value, gadgetAccessorDict, gadgetAccessorKey) {
+    init: function(gadgetName, value, gadgetAccessorDict, gadgetAccessorKey) {
       if (!gadgetAccessorDict || !gadgetAccessorKey) {
-        throw 'Not enough args passed into statePropertyService.init().';
+        throw 'Not enough args passed into stategadgetPropertyService.init().';
       }
 
       if (this.propertyName === null) {
         throw 'Gadget property name cannot be null.';
       }
 
-      $log.info('Initializing state ' + this.propertyName + ':', value);
+      $log.info('Initializing gadget ' + this.propertyName + ':', value);
 
-      // A reference to the state dict that should be updated.
+      // A reference to the gadget dict that should be updated.
       this.gadgetAccessorDict = gadgetAccessorDict;
       // The name of the key in gadgetAccessorDict whose value should be updated.
       this.gadgetAccessorKey = gadgetAccessorKey;
-      // The name of the state.
-      this.gadgateName = gadgateName;
+      // The name of the gadget.
+      this.gadgetName = gadgetName;
       // The current value of the property (which may not have been saved to the
       // frontend yet). In general, this will be bound directly to the UI.
       this.displayed = angular.copy(value);
@@ -1235,7 +1235,7 @@ oppia.factory('gadgetPropertyService', [
     // displayed value.
     saveDisplayedValue: function() {
       if (this.propertyName === null) {
-        throw 'State property name cannot be null.';
+        throw 'Gadget property name cannot be null.';
       }
 
       this.displayed = this._normalize(this.displayed);
@@ -1255,7 +1255,7 @@ oppia.factory('gadgetPropertyService', [
       // @sll: I am not sure if I need to call changelist from here as we do that 
       // in explorationGadgetsService.  and I wasn't sure how gadgetAccessorDict 
       // used for and have commented them for now. The gadgetPropertyService follow
-      // state property service now.
+      // gadget property service now.
       */
       this.savedMemento = angular.copy(this.displayed);
     },
