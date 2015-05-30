@@ -40,7 +40,7 @@ oppia.directive('ruleTypeSelector', [function() {
         numberOfRuleTypes++;
         choices.push({
           id: ruleName,
-          text: 'Answer ' + $filter('replaceInputsWithEllipses')(
+          text: $filter('replaceInputsWithEllipses')(
             ruleNamesToDescriptions[ruleName])
         });
       }
@@ -60,8 +60,8 @@ oppia.directive('ruleTypeSelector', [function() {
           id: 'Default',
           text: (
             stateInteractionIdService.savedMemento === 'Continue' ?
-            'When the button is clicked...' :
-            'When no other rule applies...')
+            'is clicked...' :
+            'is anything else...')
         });
       }
 
@@ -80,8 +80,8 @@ oppia.directive('ruleTypeSelector', [function() {
           if (object.id === 'Default') {
             return (
               stateInteractionIdService.savedMemento === 'Continue' ?
-              'When the button is clicked' :
-              'When no other rule applies');
+              'is clicked...' :
+              'is anything else...');
           } else {
             return $filter('truncateAtFirstEllipsis')(object.text);
           }
@@ -248,6 +248,7 @@ oppia.directive('ruleDetailsEditor', ['$log', function($log) {
 
         // We use a slash because this character is forbidden in a state name.
         var _PLACEHOLDER_RULE_DEST = '/';
+        var _PLACEHOLDER_RULE_DEST_END = '//';
 
         $scope.$on('saveRuleDetails', function() {
           // Remove null feedback.
@@ -261,7 +262,9 @@ oppia.directive('ruleDetailsEditor', ['$log', function($log) {
         });
 
         $scope.createNewDestIfNecessary = function() {
-          if ($scope.rule.dest === _PLACEHOLDER_RULE_DEST) {
+          if ($scope.rule.dest === _PLACEHOLDER_RULE_DEST ||
+              $scope.rule.dest === _PLACEHOLDER_RULE_DEST_END) {
+            var newEndState = ($scope.rule.dest === _PLACEHOLDER_RULE_DEST_END);
             $modal.open({
               templateUrl: 'modals/addState',
               backdrop: true,
@@ -269,7 +272,8 @@ oppia.directive('ruleDetailsEditor', ['$log', function($log) {
               controller: [
                   '$scope', '$timeout', '$modalInstance', 'explorationStatesService', 'focusService',
                   function($scope, $timeout, $modalInstance, explorationStatesService, focusService) {
-                $scope.newStateName = '';
+                $scope.rule = { newStateName: '', newEndStateName: '' };
+                $scope.newEndState = newEndState;
                 $timeout(function() {
                   focusService.setFocus('newStateNameInput');
                 });
@@ -306,7 +310,7 @@ oppia.directive('ruleDetailsEditor', ['$log', function($log) {
                     // Reload the dropdown to include the new state.
                     $scope.reloadingDestinations = false;
                   });
-                });
+                }, newEndState);
               } else if (result.action === 'cancel') {
                 $scope.rule.dest = lastSetRuleDest;
               } else {
@@ -332,9 +336,6 @@ oppia.directive('ruleDetailsEditor', ['$log', function($log) {
           $scope.destChoices = [{
             id: _currentStateName,
             text: _currentStateName + ' ⟳'
-          }, {
-            id: _PLACEHOLDER_RULE_DEST,
-            text: 'Create New State...'
           }];
 
           var stateNames = Object.keys(explorationStatesService.getStates()).sort();
@@ -346,6 +347,18 @@ oppia.directive('ruleDetailsEditor', ['$log', function($log) {
               });
             }
           }
+
+          // Adding a new state is the second last option in the list.
+          $scope.destChoices.push({
+            id: _PLACEHOLDER_RULE_DEST,
+            text: 'A New Card...'
+          });
+
+          // Adding an ending state is the last option in the list.
+          $scope.destChoices.push({
+            id: _PLACEHOLDER_RULE_DEST_END,
+            text: 'An Ending Card...'
+          });
         }, true);
       }
     ]

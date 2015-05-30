@@ -726,6 +726,21 @@ class State(object):
             }],
         }],
     }
+    DEFAULT_END_EXPLORATION_DICT = {
+        'id': 'EndExploration',
+        'customization_args': {},
+        'handlers': [{
+            'name': 'submit',
+            'rule_specs': [{
+                'dest': feconf.DEFAULT_INIT_STATE_NAME,
+                'definition': {
+                    'rule_type': 'default',
+                },
+                'feedback': [],
+                'param_changes': [],
+            }],
+        }],
+    }
 
     def __init__(self, content, param_changes, interaction):
         # The content displayed to the reader in this state.

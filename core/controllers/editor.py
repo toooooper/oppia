@@ -58,6 +58,15 @@ NEW_STATE_TEMPLATE = {
     'param_changes': [],
     'unresolved_answers': {},
 }
+NEW_END_STATE_TEMPLATE = {
+    'content': [{
+        'type': 'text',
+        'value': 'Congratulations, you have finished!'
+    }],
+    'interaction': exp_domain.State.DEFAULT_END_EXPLORATION_DICT,
+    'param_changes': [],
+    'unresolved_answers': {},
+}
 
 
 def get_value_generators_js():
@@ -241,6 +250,7 @@ class ExplorationPage(EditorHandler):
             'CATEGORIES_TO_COLORS': feconf.CATEGORIES_TO_COLORS,
             'INVALID_PARAMETER_NAMES': feconf.INVALID_PARAMETER_NAMES,
             'NEW_STATE_TEMPLATE': NEW_STATE_TEMPLATE,
+            'NEW_END_STATE_TEMPLATE': NEW_END_STATE_TEMPLATE,
             'SHOW_SKIN_CHOOSER': feconf.SHOW_SKIN_CHOOSER,
             'TAG_REGEX': feconf.TAG_REGEX,
         })

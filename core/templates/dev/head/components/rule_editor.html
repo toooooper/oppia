@@ -1,5 +1,5 @@
 <div style="height: 100%;">
-  <div ng-if="!ruleEditorIsOpen" style="height: 100%;" title="<[isEditable ? 'Edit this rule, or change its destination' : '']>">
+  <div ng-if="!ruleEditorIsOpen" style="height: 100%;" title="<[isEditable ? 'Edit this response, or change its destination card' : '']>">
     <div class="oppia-readonly-rule-tile protractor-test-edit-rule oppia-pre-avatar-oppia" ng-class="{'oppia-editable-section': isEditable}">
       <div class="oppia-rule-preview oppia-transition-200">
         <div class="oppia-click-to-start-editing" ng-click="openRuleEditor()">
@@ -27,7 +27,7 @@
         </div>
 
         <div style="padding-top: 20px;" ng-if="rule.dest !== getActiveStateName()">
-          <strong>Destination:</strong>
+          <strong>Goes to card:</strong>
           <span class="oppia-rule-dest-link" style="position: relative;">
             <a ng-click="navigateToRuleDest()">
               <[rule.dest]>
@@ -47,11 +47,11 @@
     <br>
 
     <div class="oppia-rule-save-cancel-buttons">
-      <button type="button" class="btn btn-danger protractor-test-delete-rule" ng-if="rule.definition.rule_type !== 'default'" ng-click="deleteThisRule()">Delete Rule</button>
+      <button type="button" class="btn btn-danger protractor-test-delete-rule" ng-if="rule.definition.rule_type !== 'default'" ng-click="deleteThisRule()">Delete Response</button>
 
       <div class="pull-right">
         <button type="button" class="btn btn-default" ng-click="cancelThisEdit()">Cancel</button>
-        <button type="button" class="btn btn-success protractor-test-save-rule" ng-disabled="(rule.definition.rule_type !== 'default' && !rule.definition.name) || editRuleForm.$invalid || isRuleEmpty(rule)" ng-click="saveThisRule()">Save Rule</button>
+        <button type="button" class="btn btn-success protractor-test-save-rule" ng-disabled="(rule.definition.rule_type !== 'default' && !rule.definition.name) || editRuleForm.$invalid || isRuleEmpty(rule)" ng-click="saveThisRule()">Save Response</button>
       </div>
 
       <div style="clear: both;"></div>
@@ -61,8 +61,11 @@
 
 <script type="text/ng-template" id="rules/ruleDetailsEditor">
   <div style="position: relative;">
-    <div class="oppia-rule-details-header">
-      <strong>Rule</strong>
+    <div class="oppia-rule-details-header" ng-if="currentInteractionId !== 'Continue'">
+      <strong>If the answer provided</strong>
+    </div>
+    <div class="oppia-rule-details-header" ng-if="currentInteractionId === 'Continue'">
+      <strong>When the button</strong>
     </div>
     <span ng-if="rule.definition.rule_type !== 'default' || canAddDefaultRule()">
       <rule-description-editor current-rule-definition="rule.definition"
@@ -72,10 +75,10 @@
 
     <span ng-if="rule.definition.rule_type === 'default' && !canAddDefaultRule()">
       <span ng-if="currentInteractionId === 'Continue'">
-        When the button is clicked...
+        is clicked...
       </span>
       <span ng-if="currentInteractionId !== 'Continue'">
-        No other rules apply...
+        is anything else...
       </span>
     </span>
   </div>
@@ -84,7 +87,7 @@
 
   <div class="oppia-rule-edit-feedback protractor-test-feedback-bubble">
     <div class="oppia-rule-details-header">
-      <strong>Feedback</strong>
+      <strong>Then Oppia should respond with</strong>
     </div>
     <span ng-if="rule.feedback.length > 1">
       (<em>Oppia picks one of these at random</em>):
@@ -101,7 +104,7 @@
 
   <div class="form-inline protractor-test-dest-bubble" style="margin-bottom: 10px;">
     <div class="oppia-rule-details-header">
-      <strong>Destination</strong>
+      <strong>After Oppia responds, show the learner</strong>
     </div>
     <div class="form-group" style="font-size: 1.1em;">
       <span ng-if="!reloadingDestinations">
@@ -114,23 +117,39 @@
 
 <script type="text/ng-template" id="modals/addState">
   <div class="modal-header">
-    <h3>Add New State</h3>
+    <h3 ng-if="!newEndState">Add New Card</h3>
+    <h3 ng-if="newEndState">Add New Ending Card</h3>
   </div>
 
-  <div class="modal-body">
-    <form role="form" class="form-inline" ng-submit="submit(newStateName)">
+  <div class="modal-body" ng-if="!newEndState">
+    <form role="form" class="form-inline" ng-submit="submit(rule.newStateName)">
       <div class="form-group">
-        <input type="text" class="form-control protractor-test-add-state-input" ng-model="newStateName" placeholder="New State Name" focus-on="newStateNameInput">
+        <input type="text" class="form-control protractor-test-add-state-input" ng-model="rule.newStateName" placeholder="New Card Name" focus-on="newStateNameInput">
+      </div>
+    </form>
+  </div>
+  <div class="modal-body" ng-if="newEndState">
+    <form role="form" class="form-inline" ng-submit="submit(rule.newEndStateName)">
+      <div class="form-group">
+        <input type="text" class="form-control protractor-test-add-state-input" ng-model="rule.newEndStateName" placeholder="New Ending Card Name" focus-on="newStateNameInput">
       </div>
     </form>
   </div>
 
-  <div class="modal-footer">
+  <div class="modal-footer" ng-if="!newEndState">
     <button class="btn btn-default" ng-click="cancel()">Cancel</button>
     <button class="btn btn-success protractor-test-add-state-submit"
-            ng-click="submit(newStateName)"
-            ng-disabled="!isNewStateNameValid(newStateName)">
-      Add State
+            ng-click="submit(rule.newStateName)"
+            ng-disabled="!isNewStateNameValid(rule.newStateName)">
+      Add Card
+    </button>
+  </div>
+  <div class="modal-footer" ng-if="newEndState">
+    <button class="btn btn-default" ng-click="cancel()">Cancel</button>
+    <button class="btn btn-success protractor-test-add-state-submit"
+            ng-click="submit(rule.newEndStateName)"
+            ng-disabled="!isNewStateNameValid(rule.newEndStateName)">
+      Add Ending Card
     </button>
   </div>
 </script>

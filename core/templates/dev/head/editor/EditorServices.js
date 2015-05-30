@@ -586,10 +586,10 @@ oppia.factory('explorationParamChangesService', [
 oppia.factory('explorationStatesService', [
     '$log', '$modal', '$filter', '$location', '$rootScope', 'explorationInitStateNameService',
     'warningsData', 'changeListService', 'editorContextService', 'validatorsService',
-    'newStateTemplateService',
+    'newStateTemplateService', 'statePropertyService',
     function($log, $modal, $filter, $location, $rootScope, explorationInitStateNameService,
              warningsData, changeListService, editorContextService, validatorsService,
-             newStateTemplateService) {
+             newStateTemplateService, statePropertyService) {
   var _states = null;
   return {
     setStates: function(value) {
@@ -615,7 +615,7 @@ oppia.factory('explorationStatesService', [
       return (
         validatorsService.isValidStateName(newStateName, showWarnings));
     },
-    addState: function(newStateName, successCallback) {
+    addState: function(newStateName, successCallback, endingState) {
       newStateName = $filter('normalizeWhitespace')(newStateName);
       if (!validatorsService.isValidStateName(newStateName, true)) {
         return;
@@ -627,8 +627,15 @@ oppia.factory('explorationStatesService', [
       warningsData.clear();
 
       _states[newStateName] = newStateTemplateService.getNewStateTemplate(
-        newStateName);
+        newStateName, endingState);
       changeListService.addState(newStateName);
+
+      // ensure the EndExploration interaction makes it within the changeList
+      if (endingState) {
+        changeListService.editStateProperty(
+          newStateName, 'widget_id', 'EndExploration', '');
+      }
+
       $rootScope.$broadcast('refreshGraph');
       if (successCallback) {
         successCallback(newStateName);
@@ -848,8 +855,10 @@ oppia.factory('newStateTemplateService', [function() {
     // Returns a template for the new state with the given state name, changing
     // the default rule destination to the new state name in the process.
     // NB: clients should ensure that the desired state name is valid.
-    getNewStateTemplate: function(newStateName) {
-      var newStateTemplate = angular.copy(GLOBALS.NEW_STATE_TEMPLATE);
+    getNewStateTemplate: function(newStateName, endingState) {
+      var newStateTemplate = angular.copy(
+        endingState ? GLOBALS.NEW_END_STATE_TEMPLATE :
+        GLOBALS.NEW_STATE_TEMPLATE);
       newStateTemplate.interaction.handlers.forEach(function(handler) {
         handler.rule_specs.forEach(function(ruleSpec) {
           ruleSpec.dest = newStateName;
@@ -1279,7 +1288,7 @@ oppia.factory('explorationWarningsService', [
       _warningsList.push({
         type: WARNING_TYPES.CRITICAL,
         message: (
-          'Please add interactions for these states: ' +
+          'Please add interactions for these cards: ' +
           statesWithoutInteractionIds.join(', ') + '.')
       });
     }
@@ -1292,7 +1301,7 @@ oppia.factory('explorationWarningsService', [
         _warningsList.push({
           type: WARNING_TYPES.ERROR,
           message: (
-            'The following state(s) are unreachable: ' +
+            'The following card(s) are unreachable: ' +
             unreachableStateNames.join(', ') + '.')
         });
       } else {
@@ -1303,7 +1312,7 @@ oppia.factory('explorationWarningsService', [
         if (deadEndStates.length) {
           var deadEndStatesString = null;
           if (deadEndStates.length === 1) {
-            deadEndStatesString = 'the following state: ' + deadEndStates[0];
+            deadEndStatesString = 'the following card: ' + deadEndStates[0];
           } else {
             deadEndStatesString = 'each of: ' + deadEndStates.join(', ');
           }
